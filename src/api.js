@@ -1,6 +1,40 @@
 // src/api.js
 const API_BASE = "https://col-ops-b.onrender.com";
 
+let SESSION_ID = null;
+function getSessionId() {
+  if (SESSION_ID) return SESSION_ID;
+  if (typeof window !== "undefined") {
+    SESSION_ID = window.localStorage.getItem("colops_session_id");
+  }
+  return SESSION_ID;
+}
+
+function setSessionId(id) {
+  SESSION_ID = id;
+  if (typeof window !== "undefined") {
+    if (id) {
+      window.localStorage.setItem("colops_session_id", id);
+    } else {
+      window.localStorage.removeItem("colops_session_id");
+    }
+  }
+}
+
+function authFetch(url, options = {}) {
+  const headers = { ...(options.headers || {}) };
+  const sid = getSessionId();
+  if (sid) {
+    headers["X-Session-Id"] = sid;   // 👈 magic line
+  }
+
+  return fetch(url, {
+    ...options,
+    headers,
+    credentials: "include",
+  });
+}
+
 // Small helper to read error text
 async function readError(resp, defaultMessage) {
   let txt = "";
@@ -19,15 +53,12 @@ async function readError(resp, defaultMessage) {
 export async function apiLogin(username, password) {
   const resp = await fetch(`${API_BASE}/api/login`, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    credentials: "include", // important for cookie
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
     body: JSON.stringify({ username, password }),
   });
 
   if (!resp.ok) {
-    // backend returns 401 on bad credentials
     const msg =
       resp.status === 401
         ? "Invalid username or password"
@@ -35,17 +66,22 @@ export async function apiLogin(username, password) {
     throw new Error(msg);
   }
 
-  // { status: "ok" }
-  return resp.json();
+  const data = await resp.json();
+
+  if (data.session_id) {
+    setSessionId(data.session_id);   // 👈 store it for next calls
+  }
+
+  return data;
 }
 
 export async function apiLogout() {
-  const resp = await fetch(`${API_BASE}/api/logout`, {
+  setSessionId(null); // clear header session
+
+  const resp = await authFetch(`${API_BASE}/api/logout`, {
     method: "POST",
-    credentials: "include",
   });
 
-  // ignore errors for logout, just best-effort
   try {
     return await resp.json();
   } catch {
@@ -53,14 +89,13 @@ export async function apiLogout() {
   }
 }
 
+
 /* ======================
  * Outlook payments (auto / manual)
  * ====================== */
 
 export async function fetchOutlookAuto() {
-  const resp = await fetch(`${API_BASE}/api/outlook-to-excel-payments`, {
-    credentials: "include",
-  });
+  const resp = await authFetch(`${API_BASE}/api/outlook-to-excel-payments`);
   if (!resp.ok) {
     throw new Error(await readError(resp, "fetchOutlookAuto failed"));
   }
@@ -69,9 +104,7 @@ export async function fetchOutlookAuto() {
 }
 
 export async function fetchOutlookPreview() {
-  const resp = await fetch(`${API_BASE}/api/outlook-payments-preview`, {
-    credentials: "include",
-  });
+  const resp = await authFetch(`${API_BASE}/api/outlook-payments-preview`);
   if (!resp.ok) {
     throw new Error(await readError(resp, "fetchOutlookPreview failed"));
   }
@@ -80,10 +113,9 @@ export async function fetchOutlookPreview() {
 }
 
 export async function confirmPaymentMatch({ amount_detected, row_index }) {
-  const resp = await fetch(`${API_BASE}/api/payments/confirm-match`, {
+  const resp = await authFetch(`${API_BASE}/api/payments/confirm-match`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    credentials: "include",
     body: JSON.stringify({ amount_detected, row_index }),
   });
   if (!resp.ok) {
@@ -97,9 +129,7 @@ export async function confirmPaymentMatch({ amount_detected, row_index }) {
  * ====================== */
 
 export async function getPendingOperations() {
-  const resp = await fetch(`${API_BASE}/api/pending-operations`, {
-    credentials: "include",
-  });
+  const resp = await authFetch(`${API_BASE}/api/pending-operations`);
   if (!resp.ok) {
     throw new Error("getPendingOperations failed");
   }
@@ -107,9 +137,9 @@ export async function getPendingOperations() {
 }
 
 export async function confirmOperation(id) {
-  const resp = await fetch(`${API_BASE}/api/operations/${id}/confirm`, {
+  const resp = await authFetch(`${API_BASE}/api/operations/${id}/confirm`, {
     method: "POST",
-    credentials: "include",
+    
   });
   if (!resp.ok) {
     throw new Error("confirmOperation failed");
@@ -118,9 +148,9 @@ export async function confirmOperation(id) {
 }
 
 export async function cancelOperation(id) {
-  const resp = await fetch(`${API_BASE}/api/operations/${id}/cancel`, {
+  const resp = await authFetch(`${API_BASE}/api/operations/${id}/cancel`, {
     method: "POST",
-    credentials: "include",
+    
   });
   if (!resp.ok) {
     throw new Error("cancelOperation failed");
@@ -138,9 +168,8 @@ export async function processImages(files) {
     formData.append("files", f);
   }
 
-  const resp = await fetch(`${API_BASE}/api/process-images`, {
+  const resp = await authFetch(`${API_BASE}/api/process-images`, {
     method: "POST",
-    credentials: "include",
     body: formData,
   });
 
@@ -157,9 +186,7 @@ export async function processImages(files) {
  * ====================== */
 
 export async function fetchPaymentsLog(limit = 200) {
-  const resp = await fetch(`${API_BASE}/api/payments-log?limit=${limit}`, {
-    credentials: "include",
-  });
+  const resp = await authFetch(`${API_BASE}/api/payments-log?limit=${limit}`);
   if (!resp.ok) {
     throw new Error("API error fetching payments log");
   }
