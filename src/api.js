@@ -93,24 +93,48 @@ export async function apiLogout() {
 /* ======================
  * Outlook payments (auto / manual)
  * ====================== */
-
 export async function fetchOutlookAuto() {
   const resp = await authFetch(`${API_BASE}/api/outlook-to-excel-payments`);
+
+  // 404 == no bank email yet → not a technical error
+  if (resp.status === 404) {
+    return {
+      noEmail: true,
+      updated_rows: 0,
+      email_subject: null,
+      email_id: null,
+      amounts: [],
+      matches: [],
+    };
+  }
+
   if (!resp.ok) {
     throw new Error(await readError(resp, "fetchOutlookAuto failed"));
   }
-  // { email_subject, email_id, amounts, matches, updated_rows }
   return resp.json();
 }
 
 export async function fetchOutlookPreview() {
   const resp = await authFetch(`${API_BASE}/api/outlook-payments-preview`);
+
+  // Same idea: no latest Outlook email → empty preview, not an error
+  if (resp.status === 404) {
+    return {
+      noEmail: true,
+      email_subject: null,
+      email_received_at: null,
+      amounts: [],
+      dates: [],
+      matches: [],
+    };
+  }
+
   if (!resp.ok) {
     throw new Error(await readError(resp, "fetchOutlookPreview failed"));
   }
-  // { email_subject, email_id?, amounts, matches }
   return resp.json();
 }
+
 
 export async function confirmPaymentMatch({ amount_detected, row_index }) {
   const resp = await authFetch(`${API_BASE}/api/payments/confirm-match`, {
