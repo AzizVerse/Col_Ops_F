@@ -1,4 +1,6 @@
 // src/components/manual-upload/ManualUploadPanel.jsx
+import React from "react";
+
 export function ManualUploadPanel({
   uploading,
   uploadError,
@@ -136,49 +138,128 @@ export function ManualUploadPanel({
                 </tr>
               </thead>
               <tbody>
-                {manualHistory.map((h) => (
-                  <tr key={h.id}>
-                    <td
-                      style={{
-                        padding: "6px 8px",
-                        borderBottom: "1px solid #020617",
-                      }}
-                    >
-                      {h.ts.toLocaleTimeString()}
-                    </td>
-                    <td
-                      style={{
-                        padding: "6px 8px",
-                        borderBottom: "1px solid #020617",
-                        textAlign: "right",
-                      }}
-                    >
-                      {h.imagesCount}
-                    </td>
-                    <td
-                      style={{
-                        padding: "6px 8px",
-                        borderBottom: "1px solid #020617",
-                        textAlign: "right",
-                      }}
-                    >
-                      {h.opsCount}
-                    </td>
-                    <td
-                      style={{
-                        padding: "6px 8px",
-                        borderBottom: "1px solid #020617",
-                        textAlign: "right",
-                        fontVariantNumeric: "tabular-nums",
-                      }}
-                    >
-                      {h.totalAmount.toLocaleString("fr-FR", {
-                        minimumFractionDigits: 3,
-                      })}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
+                  {manualHistory.map((h) => {
+                    const hasUnmatched = Array.isArray(h.unmatched) && h.unmatched.length > 0;
+
+                    const showUnmatchedWarning =
+                      h.opsCount === 0 &&
+                      hasUnmatched &&
+                      (
+                        typeof h.metaSubject !== "string" ||
+                        h.metaSubject.includes("0 matched") // keep your original logic if you use it
+                      );
+
+                    return (
+                      <React.Fragment key={h.id}>
+                        {/* main row */}
+                        <tr>
+                          <td
+                            style={{
+                              padding: "6px 8px",
+                              borderBottom: "1px solid #020617",
+                            }}
+                          >
+                            {h.ts.toLocaleTimeString()}
+                          </td>
+                          <td
+                            style={{
+                              padding: "6px 8px",
+                              borderBottom: "1px solid #020617",
+                              textAlign: "right",
+                            }}
+                          >
+                            {h.imagesCount}
+                          </td>
+                          <td
+                            style={{
+                              padding: "6px 8px",
+                              borderBottom: "1px solid #020617",
+                              textAlign: "right",
+                            }}
+                          >
+                            {h.opsCount}
+                          </td>
+                          <td
+                            style={{
+                              padding: "6px 8px",
+                              borderBottom: "1px solid #020617",
+                              textAlign: "right",
+                              fontVariantNumeric: "tabular-nums",
+                            }}
+                          >
+                            {h.totalAmount.toLocaleString("fr-FR", {
+                              minimumFractionDigits: 3,
+                            })}
+                          </td>
+                        </tr>
+
+                        {/* warning when OCR saw amounts but nothing was matched */}
+                        {showUnmatchedWarning && (
+                          <tr>
+                            <td
+                              colSpan={4}
+                              style={{
+                                padding: "4px 8px 4px",
+                                borderBottom: "1px solid #020617",
+                                fontSize: 11,
+                                color: "#fbbf24",
+                              }}
+                            >
+                              OCR a bien détecté des montants sur les captures, mais aucun
+                              n’a été rapproché d’une facture (tolérance ±2 TND). Vérifiez
+                              ci-dessous les montants et leurs factures les plus proches.
+                            </td>
+                          </tr>
+                        )}
+
+                        {/* details: OCR unmatched amounts + top closest unpaid invoices */}
+                        {hasUnmatched && (
+                          <tr>
+                            <td
+                              colSpan={4}
+                              style={{
+                                padding: "4px 8px 8px",
+                                borderBottom: "1px solid #020617",
+                                fontSize: 11,
+                                color: "#9ca3af",
+                                background: "#020617",
+                              }}
+                            >
+                              {h.unmatched.map((u, idx) => (
+                                <div key={idx} style={{ marginTop: idx ? 4 : 0 }}>
+                                  <span style={{ fontWeight: 500 }}>
+                                    {u.amount_tnd.toLocaleString("fr-FR", {
+                                      minimumFractionDigits: 3,
+                                      maximumFractionDigits: 3,
+                                    })}{" "}
+                                    TND
+                                  </span>{" "}
+                                  ({u.date || "date inconnue"}) →{" "}
+                                  {u.suggestions && u.suggestions.length > 0 ? (
+                                    u.suggestions.slice(0, 3).map((s, j) => (
+                                      <span key={j}>
+                                        {j > 0 && " | "}
+                                        {s.client} #{s.row_index} (
+                                        {s.amount_tnd.toLocaleString("fr-FR", {
+                                          minimumFractionDigits: 3,
+                                          maximumFractionDigits: 3,
+                                        })}
+                                        , diff {s.diff.toFixed(3)})
+                                      </span>
+                                    ))
+                                  ) : (
+                                    <span>aucune facture proche trouvée</span>
+                                  )}
+                                </div>
+                              ))}
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
+                    );
+                  })}
+                </tbody>
+
             </table>
           </div>
         </div>

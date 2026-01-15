@@ -9,6 +9,9 @@ import { useColOpsEngine } from "./hooks/useColOpsEngine";
 import { PaymentsHistoryTable } from "./components/history/PaymentsHistoryTable";
 import { LoginPanel } from "./components/user/LoginPanel";
 import { useAuth } from "./components/auth/AuthContext";
+// en haut du fichier
+import InvoiceReminders from "./components/InvoiceReminders.jsx";
+import BusinessCardUploader from "./components/BusinessCardUploader.jsx";
 
 function App() {
   const { isAuthenticated, checkingAuth, logout } = useAuth();
@@ -158,7 +161,10 @@ function App() {
         confirmingId={confirmingId}
         cancellingId={cancellingId}
       />
+      <InvoiceReminders />
+      <BusinessCardUploader />
     </AppShell>
+    
   );
 }
 

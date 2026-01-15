@@ -299,21 +299,26 @@ export function useColOpsEngine({ enabled = true } = {}) {
       setResult(data);
 
       const total =
-        data.operations?.reduce(
-          (sum, op) => sum + (op.amount_tnd || 0),
-          0
-        ) ?? 0;
+  data?.meta?.ocr_total ??
+  (data.operations || []).reduce(
+    (sum, op) => sum + (op.amount_tnd || 0),
+    0
+  );
 
-      setManualHistory((prev) => [
-        {
-          id: data.meta?.message_id || `manual-${Date.now()}`,
-          ts: new Date(),
-          imagesCount: files.length,
-          opsCount: data.operations?.length || 0,
-          totalAmount: total,
-        },
-        ...prev,
-      ]);
+setManualHistory((prev) => [
+  {
+    id: data.meta?.message_id || `manual-${Date.now()}`,
+    ts: new Date(),
+    imagesCount: files.length,
+    opsCount: (data.operations || []).filter(
+      (op) => op.row_index != null
+    ).length,
+    totalAmount: total,
+    unmatched: data.unmatched || [],   // 👈 store suggestions
+  },
+  ...prev,
+]);
+
 
       await refreshPendingQueue();
     } catch (e) {
@@ -367,9 +372,7 @@ export function useColOpsEngine({ enabled = true } = {}) {
   // ---- totals & derived data ----
 
   // UI pending list depends on mode
-  const uiPending = autoMode
-    ? pending
-    : paymentsPending.filter((p) => p.status === "pending");
+  const uiPending = pending;
   const nextPending = uiPending.length > 0 ? uiPending[0] : null;
 
   let totalAmount = 0;

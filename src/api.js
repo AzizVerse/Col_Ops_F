@@ -1,6 +1,6 @@
 // src/api.js
-const API_BASE = "https://col-ops-b.onrender.com";
-
+//const API_BASE = "https://col-ops-b.onrender.com";
+const API_BASE = "http://localhost:8000";
 let SESSION_ID = null;
 function getSessionId() {
   if (SESSION_ID) return SESSION_ID;
@@ -215,4 +215,106 @@ export async function fetchPaymentsLog(limit = 200) {
     throw new Error("API error fetching payments log");
   }
   return resp.json(); // { entries: [...] }
+}
+
+// ======================
+// INVOICE REMINDERS
+// ======================
+
+export async function fetchUnpaidInvoices() {
+  const resp = await authFetch(`${API_BASE}/api/invoices/unpaid`);
+  if (!resp.ok) {
+    throw new Error(await readError(resp, "fetchUnpaidInvoices failed"));
+  }
+  // { invoices: [...] }
+  return resp.json();
+}
+
+export async function toggleInvoiceReminder(row_index, active) {
+  const resp = await authFetch(
+    `${API_BASE}/api/invoices/${row_index}/reminder`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ active }),
+    }
+  );
+
+  if (!resp.ok) {
+    throw new Error(await readError(resp, "toggleInvoiceReminder failed"));
+  }
+  // { status: "ok", state: {...} }
+  return resp.json();
+}
+
+export async function runRemindersNow() {
+  const resp = await authFetch(`${API_BASE}/api/reminders/run`, {
+    method: "POST",
+  });
+
+  if (!resp.ok) {
+    throw new Error(await readError(resp, "runRemindersNow failed"));
+  }
+  // { status: "ok", actions: [...] }
+  return resp.json();
+}
+
+export async function toggleInvoiceReminderPause(rowIndex, paused) {
+  const resp = await authFetch(
+    `${API_BASE}/api/invoices/${rowIndex}/reminder/pause`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ paused }),
+    }
+  );
+
+  if (!resp.ok) {
+    const text = await resp.text();
+    throw new Error(
+      `toggleInvoiceReminderPause failed: ${resp.status} ${text}`
+    );
+  }
+
+  return resp.json();
+}
+
+export async function sendInvoiceReminder(rowIndex) {
+  const resp = await authFetch(
+    `${API_BASE}/api/invoices/${rowIndex}/reminder/send`,
+    {
+      method: "POST",
+    }
+  );
+
+  if (!resp.ok) {
+    const text = await resp.text();
+    throw new Error(
+      `sendInvoiceReminder failed: ${resp.status} ${text}`
+    );
+  }
+
+  return resp.json();
+}
+/* ======================
+ * Business Cards OCR -> OneDrive
+ * ====================== */
+
+export async function uploadBusinessCards(files) {
+  const formData = new FormData();
+  for (const f of files) {
+    formData.append("files", f); // must be "files"
+  }
+
+  const resp = await authFetch(`${API_BASE}/api/cards/upload`, {
+    method: "POST",
+    body: formData,
+  });
+
+  // If you still see 404, it means backend route isn't there or wrong backend base.
+  if (!resp.ok) {
+    throw new Error(await readError(resp, "uploadBusinessCards failed"));
+  }
+
+  return resp.json(); // { uploaded, processed_ok, processed_failed, results }
 }
