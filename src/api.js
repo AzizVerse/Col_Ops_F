@@ -1,6 +1,6 @@
 // src/api.js
 const API_BASE = "https://col-ops-b-1.onrender.com";
-//cconst API_BASE = "http://localhost:8000";
+//const API_BASE = "http://localhost:8000";
 let SESSION_ID = null;
 function getSessionId() {
   if (SESSION_ID) return SESSION_ID;
@@ -317,4 +317,46 @@ export async function uploadBusinessCards(files) {
   }
 
   return resp.json(); // { uploaded, processed_ok, processed_failed, results }
+}
+/* ======================
+ * DAILY DIGEST
+ * ====================== */
+
+export async function fetchDigestSchedule() {
+  const resp = await authFetch(`${API_BASE}/api/digest/schedule`);
+  if (!resp.ok) {
+    throw new Error(await readError(resp, "fetchDigestSchedule failed"));
+  }
+  return resp.json();
+}
+
+export async function updateDigestSchedule({ enabled, hour, minute }) {
+  const resp = await authFetch(`${API_BASE}/api/digest/schedule`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ enabled, hour, minute }),
+  });
+
+  if (!resp.ok) {
+    throw new Error(await readError(resp, "updateDigestSchedule failed"));
+  }
+  return resp.json();
+}
+
+export async function previewDailyDigest() {
+  const resp = await authFetch(`${API_BASE}/api/digest/preview`);
+  if (!resp.ok) {
+    throw new Error(await readError(resp, "previewDailyDigest failed"));
+  }
+  return resp.json(); // { text, pending_by_month, inflows, ... }
+}
+
+export async function sendDailyDigestNow() {
+  const resp = await authFetch(`${API_BASE}/api/digest/send-now`, {
+    method: "POST",
+  });
+  if (!resp.ok) {
+    throw new Error(await readError(resp, "sendDailyDigestNow failed"));
+  }
+  return resp.json(); // { status: "sent", today: "YYYY-MM-DD" }
 }
