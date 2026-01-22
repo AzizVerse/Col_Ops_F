@@ -14,7 +14,7 @@ export function MonitorPanel({
   nextPending,
   autoMode,
   toggleAutoMode,
-  matches,    // <--- new
+  matches,
 }) {
   return (
     <div
@@ -28,30 +28,88 @@ export function MonitorPanel({
         boxShadow: "0 10px 30px rgba(0,0,0,0.45)",
       }}
     >
+      {/* Mode switch (safe) */}
       <div
         style={{
           display: "flex",
-          justifyContent: "flex-end",
+          justifyContent: "space-between",
+          gap: 12,
+          alignItems: "center",
           marginBottom: 10,
+          flexWrap: "wrap",
         }}
       >
-        <button
-          onClick={toggleAutoMode}
+        <div style={{ color: "#e5e7eb" }}>
+          <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: 0.2 }}>
+            Processing mode
+          </div>
+          <div style={{ fontSize: 12, opacity: 0.75, marginTop: 2 }}>
+            Manual = preview + confirm. Auto = applies matches immediately.
+          </div>
+        </div>
+
+        {/* Segmented control */}
+        <div
           style={{
-            padding: "6px 12px",
+            display: "inline-flex",
+            alignItems: "center",
+            padding: 4,
             borderRadius: 999,
-            border: "1px solid #1f2937",
-            background: autoMode ? "#22c55e" : "#111827",
-            color: autoMode ? "#020617" : "#e5e7eb",
-            fontSize: 12,
-            fontWeight: 600,
-            cursor: "pointer",
+            border: "1px solid rgba(255,255,255,0.10)",
+            background: "rgba(255,255,255,0.04)",
+            boxShadow: "inset 0 1px 0 rgba(255,255,255,0.05)",
           }}
         >
-          {autoMode ? "Auto mode: ON" : "Auto mode: OFF"}
-        </button>
+          {/* Manual */}
+          <button
+            type="button"
+            onClick={() => {
+              if (autoMode) toggleAutoMode(); // only toggle if currently auto
+            }}
+            style={{
+              padding: "7px 12px",
+              borderRadius: 999,
+              border: "1px solid transparent",
+              background: autoMode ? "transparent" : "#2563eb",
+              color: autoMode ? "#e5e7eb" : "#ffffff",
+              fontSize: 12,
+              fontWeight: 700,
+              cursor: autoMode ? "pointer" : "default",
+              transition: "all 120ms ease",
+              outline: "none",
+            }}
+            aria-pressed={!autoMode}
+          >
+            Manual (safe)
+          </button>
+
+          {/* Auto */}
+          <button
+            type="button"
+            onClick={() => {
+              if (!autoMode) toggleAutoMode(); // only toggle if currently manual
+            }}
+            style={{
+              padding: "7px 12px",
+              borderRadius: 999,
+              border: "1px solid transparent",
+              background: autoMode ? "#f59e0b" : "transparent",
+              color: autoMode ? "#111827" : "#e5e7eb",
+              fontSize: 12,
+              fontWeight: 800,
+              cursor: autoMode ? "default" : "pointer",
+              transition: "all 120ms ease",
+              outline: "none",
+            }}
+            aria-pressed={autoMode}
+            title="Auto applies matches immediately (no confirmation)."
+          >
+            Auto Mode
+          </button>
+        </div>
       </div>
 
+      {/* Cards */}
       <div
         style={{
           display: "flex",
@@ -60,15 +118,8 @@ export function MonitorPanel({
           flexWrap: "wrap",
         }}
       >
-        <StatusCard
-          statusText={statusText}
-          statusColor={statusColor}
-          lastCheck={lastCheck}
-        />
-        <LatestAlertCard
-          latestSubject={latestSubject}
-          totalAmount={totalAmount}
-        />
+        <StatusCard statusText={statusText} statusColor={statusColor} lastCheck={lastCheck} />
+        <LatestAlertCard latestSubject={latestSubject} totalAmount={totalAmount} />
         <QueueCard pendingCount={pending.length} nextPending={nextPending} />
       </div>
 

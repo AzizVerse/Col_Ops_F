@@ -34,12 +34,17 @@ export function useColOpsEngine({ enabled = true } = {}) {
   const [dragActive, setDragActive] = useState(false);
   const [manualHistory, setManualHistory] = useState([]);
 
-  const [autoMode, setAutoMode] = useState(() => {
-    if (typeof window === "undefined") return true;
+    const [autoMode, setAutoMode] = useState(() => {
+    if (typeof window === "undefined") return false; // ✅ default OFF
     const saved = window.localStorage.getItem(AUTO_MODE_STORAGE_KEY);
-    if (saved === "0") return false;
-    return true;
+
+    // ✅ if nothing saved yet -> OFF
+    if (saved === null) return false;
+
+    // ✅ saved "1" means ON, anything else means OFF
+    return saved === "1";
   });
+
 
   const [matches, setMatches] = useState([]);
 
@@ -60,6 +65,7 @@ export function useColOpsEngine({ enabled = true } = {}) {
       // ignore
     }
   }, []);
+  
 
   // History: only when enabled
   useEffect(() => {
