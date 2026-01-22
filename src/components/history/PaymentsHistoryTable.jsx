@@ -19,10 +19,11 @@ export function PaymentsHistoryTable({
       <div
         style={{
           display: "flex",
-          gap: 8,
+          gap: 10,
           flexWrap: "wrap",
-          marginBottom: 8,
+          marginBottom: 10,
           fontSize: 13,
+          alignItems: "center",
         }}
       >
         {/* Client filter */}
@@ -31,51 +32,46 @@ export function PaymentsHistoryTable({
           value={historyClientFilter}
           onChange={(e) => setHistoryClientFilter(e.target.value)}
           style={{
-            padding: "6px 8px",
+            padding: "7px 10px",
             borderRadius: 999,
             border: "1px solid #1f2937",
             background: "#020617",
             color: "#e5e7eb",
             outline: "none",
-            minWidth: 180,
+            minWidth: 220,
           }}
         />
 
         {/* Match type select */}
-        <div
-          style={{
-            position: "relative",
-            display: "inline-block",
-          }}
-        >
+        <div style={{ position: "relative", display: "inline-block" }}>
           <select
             value={historyMatchType}
             onChange={(e) => setHistoryMatchType(e.target.value)}
             style={{
-              padding: "6px 28px 6px 10px",
+              padding: "7px 34px 7px 12px",
               borderRadius: 999,
               border: "1px solid #1f2937",
-              background: "transparent",
+              background: "#020617",
               color: "#e5e7eb",
               outline: "none",
-              WebkitAppearance: "none",
-              MozAppearance: "none",
               appearance: "none",
               cursor: "pointer",
+              minWidth: 210,
             }}
           >
-            <option value="all">All match types</option>
-            <option value="exact">Exact</option>
-            <option value="tolerance">Tolerance</option>
+            <option value="all">All match types (Exact + Tolerance)</option>
+            <option value="exact">Exact matches only</option>
+            <option value="tolerance">Tolerance matches only</option>
           </select>
+
           <span
             style={{
               position: "absolute",
-              right: 10,
+              right: 12,
               top: "50%",
               transform: "translateY(-50%)",
               pointerEvents: "none",
-              fontSize: 10,
+              fontSize: 11,
               color: "#9ca3af",
             }}
           >
@@ -84,41 +80,36 @@ export function PaymentsHistoryTable({
         </div>
 
         {/* Source select */}
-        <div
-          style={{
-            position: "relative",
-            display: "inline-block",
-          }}
-        >
+        <div style={{ position: "relative", display: "inline-block" }}>
           <select
             value={historySource}
             onChange={(e) => setHistorySource(e.target.value)}
             style={{
-              padding: "6px 28px 6px 10px",
+              padding: "7px 34px 7px 12px",
               borderRadius: 999,
               border: "1px solid #1f2937",
-              background: "transparent",
+              background: "#020617",
               color: "#e5e7eb",
               outline: "none",
-              WebkitAppearance: "none",
-              MozAppearance: "none",
               appearance: "none",
               cursor: "pointer",
+              minWidth: 220,
             }}
           >
-            <option value="all">All sources</option>
+            <option value="all">All sources (Auto + OCR + Manual)</option>
             <option value="auto">Auto</option>
             <option value="ocr">OCR</option>
-            <option value="manual">Manuel</option>
+            <option value="manual">Manual</option>
           </select>
+
           <span
             style={{
               position: "absolute",
-              right: 10,
+              right: 12,
               top: "50%",
               transform: "translateY(-50%)",
               pointerEvents: "none",
-              fontSize: 10,
+              fontSize: 11,
               color: "#9ca3af",
             }}
           >
@@ -127,10 +118,11 @@ export function PaymentsHistoryTable({
         </div>
       </div>
 
-      {/* Table */}
+      {/* Table wrapper: vertical + horizontal scroll */}
       <div
         style={{
           overflowX: "auto",
+          overflowY: "auto",
           borderRadius: 12,
           border: "1px solid #1f2937",
           background: "#020617",
@@ -141,9 +133,11 @@ export function PaymentsHistoryTable({
           cellPadding="6"
           style={{
             width: "100%",
+            minWidth: 980, // forces horizontal scroll on smaller screens
             borderCollapse: "collapse",
             fontSize: 12,
             color: "#e5e7eb",
+            whiteSpace: "nowrap", // prevents wrapping -> keeps columns readable
           }}
         >
           <thead>
@@ -152,6 +146,11 @@ export function PaymentsHistoryTable({
                 style={{
                   textAlign: "left",
                   borderBottom: "1px solid #1f2937",
+                  padding: "8px 10px",
+                  position: "sticky",
+                  top: 0,
+                  background: "#0f172a",
+                  zIndex: 1,
                 }}
               >
                 Time
@@ -160,6 +159,11 @@ export function PaymentsHistoryTable({
                 style={{
                   textAlign: "left",
                   borderBottom: "1px solid #1f2937",
+                  padding: "8px 10px",
+                  position: "sticky",
+                  top: 0,
+                  background: "#0f172a",
+                  zIndex: 1,
                 }}
               >
                 Source
@@ -168,6 +172,11 @@ export function PaymentsHistoryTable({
                 style={{
                   textAlign: "left",
                   borderBottom: "1px solid #1f2937",
+                  padding: "8px 10px",
+                  position: "sticky",
+                  top: 0,
+                  background: "#0f172a",
+                  zIndex: 1,
                 }}
               >
                 Client
@@ -176,6 +185,11 @@ export function PaymentsHistoryTable({
                 style={{
                   textAlign: "right",
                   borderBottom: "1px solid #1f2937",
+                  padding: "8px 10px",
+                  position: "sticky",
+                  top: 0,
+                  background: "#0f172a",
+                  zIndex: 1,
                 }}
               >
                 Amount
@@ -184,6 +198,11 @@ export function PaymentsHistoryTable({
                 style={{
                   textAlign: "right",
                   borderBottom: "1px solid #1f2937",
+                  padding: "8px 10px",
+                  position: "sticky",
+                  top: 0,
+                  background: "#0f172a",
+                  zIndex: 1,
                 }}
               >
                 Invoice
@@ -192,6 +211,11 @@ export function PaymentsHistoryTable({
                 style={{
                   textAlign: "right",
                   borderBottom: "1px solid #1f2937",
+                  padding: "8px 10px",
+                  position: "sticky",
+                  top: 0,
+                  background: "#0f172a",
+                  zIndex: 1,
                 }}
               >
                 Diff
@@ -200,6 +224,11 @@ export function PaymentsHistoryTable({
                 style={{
                   textAlign: "left",
                   borderBottom: "1px solid #1f2937",
+                  padding: "8px 10px",
+                  position: "sticky",
+                  top: 0,
+                  background: "#0f172a",
+                  zIndex: 1,
                 }}
               >
                 Type
@@ -208,74 +237,110 @@ export function PaymentsHistoryTable({
                 style={{
                   textAlign: "right",
                   borderBottom: "1px solid #1f2937",
+                  padding: "8px 10px",
+                  position: "sticky",
+                  top: 0,
+                  background: "#0f172a",
+                  zIndex: 1,
                 }}
               >
                 Row
               </th>
             </tr>
           </thead>
+
           <tbody>
             {history.map((r, idx) => (
               <tr key={idx}>
-                <td style={{ borderBottom: "1px solid #0f172a" }}>
+                <td
+                  style={{
+                    borderBottom: "1px solid #0f172a",
+                    padding: "8px 10px",
+                  }}
+                >
                   {r.timestamp}
                 </td>
-                <td style={{ borderBottom: "1px solid #0f172a" }}>
+                <td
+                  style={{
+                    borderBottom: "1px solid #0f172a",
+                    padding: "8px 10px",
+                  }}
+                >
                   {r.source}
                 </td>
-                <td style={{ borderBottom: "1px solid #0f172a" }}>
+                <td
+                  style={{
+                    borderBottom: "1px solid #0f172a",
+                    padding: "8px 10px",
+                  }}
+                >
                   {r.client}
                 </td>
+
                 <td
                   style={{
                     borderBottom: "1px solid #0f172a",
                     textAlign: "right",
                     fontVariantNumeric: "tabular-nums",
+                    padding: "8px 10px",
                   }}
                 >
                   {Number(r.amount_detected || 0).toLocaleString("fr-FR", {
                     minimumFractionDigits: 3,
                   })}
                 </td>
+
                 <td
                   style={{
                     borderBottom: "1px solid #0f172a",
                     textAlign: "right",
                     fontVariantNumeric: "tabular-nums",
+                    padding: "8px 10px",
                   }}
                 >
                   {Number(r.invoice_amount || 0).toLocaleString("fr-FR", {
                     minimumFractionDigits: 3,
                   })}
                 </td>
+
                 <td
                   style={{
                     borderBottom: "1px solid #0f172a",
                     textAlign: "right",
                     fontVariantNumeric: "tabular-nums",
+                    padding: "8px 10px",
                   }}
                 >
                   {Number(r.diff || 0).toFixed(3)}
                 </td>
-                <td style={{ borderBottom: "1px solid #0f172a" }}>
+
+                <td
+                  style={{
+                    borderBottom: "1px solid #0f172a",
+                    padding: "8px 10px",
+                  }}
+                >
                   {r.match_type}
                 </td>
+
                 <td
                   style={{
                     borderBottom: "1px solid #0f172a",
                     textAlign: "right",
+                    padding: "8px 10px",
                   }}
                 >
                   {r.row_index}
                 </td>
               </tr>
             ))}
+
             {history.length === 0 && (
               <tr>
                 <td
                   colSpan={8}
                   style={{
-                    padding: 8,
+                    padding: 10,
                     textAlign: "center",
                     color: "#9ca3af",
                   }}
