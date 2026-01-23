@@ -176,29 +176,10 @@ export default function DailyDigestPanel() {
   }, [preview, pendingQuery, selectedMonth, sortMode, topN]);
 
   return (
-    <div
-      style={{
-        marginTop: 16,
-        background: "#0b1220",
-        border: "1px solid rgba(255,255,255,0.08)",
-        borderRadius: 12,
-        padding: 16,
-        color: "#e5e7eb",
-        width: "100%",
-      }}
-    >
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          gap: 12,
-          flexWrap: "wrap",
-        }}
-      >
+    <div style={panelStyle}>
+      <div style={headerRowStyle}>
         <div>
-          <div style={{ fontSize: 16, fontWeight: 700 }}>
-            Daily Digest (Telegram)
-          </div>
+          <div style={{ fontSize: 16, fontWeight: 700 }}>Daily Digest (Telegram)</div>
           <div style={{ fontSize: 12, opacity: 0.8, marginTop: 4 }}>
             Generates “Cash inflows today” + “Pending invoices by month”.
           </div>
@@ -207,61 +188,29 @@ export default function DailyDigestPanel() {
           </div>
         </div>
 
-        <div
-          style={{
-            display: "flex",
-            gap: 10,
-            alignItems: "center",
-            flexWrap: "wrap",
-          }}
-        >
-          <button
-            onClick={handlePreview}
-            disabled={loading}
-            style={btnStyle(loading ? 0.7 : 1)}
-          >
+        <div style={headerButtonsStyle}>
+          <button onClick={handlePreview} disabled={loading} style={btnStyle(loading ? 0.7 : 1)}>
             {loading ? "Generating…" : "Preview"}
           </button>
 
-          <button
-            onClick={handleSendNow}
-            disabled={sending}
-            style={btnStyle(sending ? 0.7 : 1, true)}
-          >
+          <button onClick={handleSendNow} disabled={sending} style={btnStyle(sending ? 0.7 : 1, true)}>
             {sending ? "Sending…" : "Send"}
           </button>
         </div>
       </div>
 
       {/* Schedule */}
-      <div
-        style={{
-          marginTop: 14,
-          padding: 12,
-          borderRadius: 10,
-          background: "rgba(255,255,255,0.03)",
-          border: "1px solid rgba(255,255,255,0.06)",
-        }}
-      >
+      <div style={scheduleBoxStyle}>
         <div style={{ fontSize: 13, fontWeight: 650, marginBottom: 8 }}>
           Auto schedule (Tunis time)
         </div>
 
-        <div
-          style={{
-            display: "flex",
-            gap: 12,
-            alignItems: "center",
-            flexWrap: "wrap",
-          }}
-        >
+        <div style={scheduleRowStyle}>
           <label style={labelStyle}>
             <input
               type="checkbox"
               checked={!!schedule.enabled}
-              onChange={(e) =>
-                setSchedule((s) => ({ ...s, enabled: e.target.checked }))
-              }
+              onChange={(e) => setSchedule((s) => ({ ...s, enabled: e.target.checked }))}
               style={{ marginRight: 8 }}
             />
             Enabled
@@ -286,33 +235,22 @@ export default function DailyDigestPanel() {
               min={0}
               max={59}
               value={schedule.minute}
-              onChange={(e) =>
-                setSchedule((s) => ({ ...s, minute: e.target.value }))
-              }
+              onChange={(e) => setSchedule((s) => ({ ...s, minute: e.target.value }))}
               style={inputStyle}
             />
           </label>
 
           <div style={{ fontSize: 12, opacity: 0.8 }}>
-            Scheduled: {pad2(schedule.hour)}:{pad2(schedule.minute)} (
-            {schedule.timezone || "Africa/Tunis"})
+            Scheduled: {pad2(schedule.hour)}:{pad2(schedule.minute)} ({schedule.timezone || "Africa/Tunis"})
           </div>
 
-          <button
-            onClick={handleSaveSchedule}
-            disabled={saving}
-            style={btnStyle(saving ? 0.7 : 1)}
-          >
+          <button onClick={handleSaveSchedule} disabled={saving} style={btnStyle(saving ? 0.7 : 1)}>
             {saving ? "Saving…" : "Save schedule"}
           </button>
         </div>
       </div>
 
-      {error ? (
-        <div style={{ marginTop: 12, color: "#fca5a5", fontSize: 13 }}>
-          {error}
-        </div>
-      ) : null}
+      {error ? <div style={{ marginTop: 12, color: "#fca5a5", fontSize: 13 }}>{error}</div> : null}
 
       {/* Preview */}
       <div style={{ marginTop: 14 }}>
@@ -321,14 +259,7 @@ export default function DailyDigestPanel() {
         </div>
 
         {preview?.pending_by_month ? (
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
-              gap: 12,
-              marginBottom: 12,
-            }}
-          >
+          <div style={gridStyle}>
             {/* Inflows today */}
             <div style={cardStyle}>
               <div style={{ fontSize: 13, fontWeight: 650, marginBottom: 8 }}>
@@ -336,57 +267,38 @@ export default function DailyDigestPanel() {
               </div>
 
               {(preview?.inflows_today || []).length === 0 ? (
-                <div style={{ fontSize: 12, opacity: 0.75 }}>
-                  No inflows detected today.
-                </div>
+                <div style={{ fontSize: 12, opacity: 0.75 }}>No inflows detected today.</div>
               ) : (
                 <>
                   {(preview.inflows_today || []).map((x, idx) => (
                     <div key={idx} style={rowStyle}>
                       <span style={{ opacity: 0.9 }}>{x.client}</span>
-                      <span style={{ fontWeight: 700 }}>
-                        {formatMoneyTND(x.amount)} TND
-                      </span>
+                      <span style={{ fontWeight: 700 }}>{formatMoneyTND(x.amount)} TND</span>
                     </div>
                   ))}
 
-                  <div
-                    style={{
-                      ...rowStyle,
-                      marginTop: 8,
-                      paddingTop: 8,
-                      borderTop: "1px solid rgba(255,255,255,0.08)",
-                    }}
-                  >
+                  <div style={totalRowStyle}>
                     <span style={{ opacity: 0.9 }}>Total</span>
-                    <span style={{ fontWeight: 800 }}>
-                      {formatMoneyTND(preview.inflows_total || 0)} TND
-                    </span>
+                    <span style={{ fontWeight: 800 }}>{formatMoneyTND(preview.inflows_total || 0)} TND</span>
                   </div>
                 </>
               )}
             </div>
 
-            {/* Pending by Month (Enhanced) */}
-            <div style={cardStyle}>
-              <div style={{ fontSize: 13, fontWeight: 650, marginBottom: 8 }}>
-                Pending by Month
-              </div>
+            {/* Pending by Month (FIXED overflow) */}
+            <div style={rightCardStyle}>
+              <div style={{ fontSize: 13, fontWeight: 650, marginBottom: 8 }}>Pending by Month</div>
 
-              {/* Filters (sticky) */}
+              {/* Filters (no horizontal overflow) */}
               <div style={stickyFiltersStyle}>
                 <input
                   value={pendingQuery}
                   onChange={(e) => setPendingQuery(e.target.value)}
-                  placeholder="Search client… (e.g., BK Food)"
+                  placeholder="Search client…"
                   style={searchInputStyle}
                 />
 
-                <select
-                  value={selectedMonth}
-                  onChange={(e) => setSelectedMonth(e.target.value)}
-                  style={selectStyle}
-                >
+                <select value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)} style={selectStyle}>
                   <option value="__ALL__">All months</option>
                   {monthOptions.map((m) => (
                     <option key={m} value={m}>
@@ -395,55 +307,35 @@ export default function DailyDigestPanel() {
                   ))}
                 </select>
 
-                <select
-                  value={sortMode}
-                  onChange={(e) => setSortMode(e.target.value)}
-                  style={selectStyle}
-                >
+                <select value={sortMode} onChange={(e) => setSortMode(e.target.value)} style={selectStyle}>
                   <option value="amount_desc">Sort: Amount ↓</option>
                   <option value="amount_asc">Sort: Amount ↑</option>
                   <option value="client_az">Sort: Client A→Z</option>
                 </select>
 
-                <select
-                  value={topN}
-                  onChange={(e) => setTopN(e.target.value)}
-                  style={selectStyle}
-                >
+                <select value={topN} onChange={(e) => setTopN(e.target.value)} style={selectStyle}>
                   <option value="10">Top 10</option>
                   <option value="25">Top 25</option>
                   <option value="999999">All</option>
                 </select>
 
-                <button
-                  onClick={() => setExpandedMonths(new Set(monthOptions))}
-                  style={miniBtnStyle}
-                  title="Expand all"
-                >
+                <button onClick={() => setExpandedMonths(new Set(monthOptions))} style={miniBtnStyle}>
                   Expand
                 </button>
-                <button
-                  onClick={() => setExpandedMonths(new Set())}
-                  style={miniBtnStyle}
-                  title="Collapse all"
-                >
+                <button onClick={() => setExpandedMonths(new Set())} style={miniBtnStyle}>
                   Collapse
                 </button>
               </div>
 
-              {/* Scrollable list */}
+              {/* Scrollable list (vertical only) */}
               <div style={scrollAreaStyle}>
                 {filteredMonthBlocks.length === 0 ? (
-                  <div style={{ fontSize: 12, opacity: 0.75, padding: 8 }}>
-                    No results.
-                  </div>
+                  <div style={{ fontSize: 12, opacity: 0.75, padding: 8 }}>No results.</div>
                 ) : (
                   filteredMonthBlocks.map(({ month, items, total }) => {
                     const isOpen = expandedMonths.has(month);
-
                     return (
                       <div key={month} style={{ marginBottom: 10 }}>
-                        {/* Month header */}
                         <div
                           style={monthHeaderStyle}
                           onClick={() => {
@@ -455,65 +347,28 @@ export default function DailyDigestPanel() {
                             });
                           }}
                         >
-                          <div
-                            style={{
-                              display: "flex",
-                              alignItems: "center",
-                              gap: 8,
-                            }}
-                          >
+                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                             <span style={{ fontWeight: 800 }}>{month}</span>
-                            <span style={{ opacity: 0.75, fontSize: 12 }}>
-                              ({items.length})
-                            </span>
+                            <span style={{ opacity: 0.75, fontSize: 12 }}>({items.length})</span>
                           </div>
-                          <div
-                            style={{
-                              display: "flex",
-                              alignItems: "center",
-                              gap: 10,
-                            }}
-                          >
-                            <span style={{ fontWeight: 800 }}>
-                              {formatMoneyTND(total)} TND
-                            </span>
-                            <span style={{ opacity: 0.7, fontSize: 12 }}>
-                              {isOpen ? "▲" : "▼"}
-                            </span>
+                          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                            <span style={{ fontWeight: 800 }}>{formatMoneyTND(total)} TND</span>
+                            <span style={{ opacity: 0.7, fontSize: 12 }}>{isOpen ? "▲" : "▼"}</span>
                           </div>
                         </div>
 
-                        {/* Items */}
                         {isOpen ? (
-                          <div
-                            style={{
-                              display: "flex",
-                              flexDirection: "column",
-                              gap: 6,
-                              padding: "6px 2px",
-                            }}
-                          >
+                          <div style={{ display: "flex", flexDirection: "column", gap: 6, padding: "6px 2px" }}>
                             {items.map((it, idx) => (
                               <div key={idx} style={rowStyle}>
                                 <span style={{ opacity: 0.92 }}>{it.client}</span>
-                                <span style={{ fontWeight: 700 }}>
-                                  {formatMoneyTND(it.amount)} TND
-                                </span>
+                                <span style={{ fontWeight: 700 }}>{formatMoneyTND(it.amount)} TND</span>
                               </div>
                             ))}
 
-                            <div
-                              style={{
-                                ...rowStyle,
-                                marginTop: 6,
-                                paddingTop: 8,
-                                borderTop: "1px solid rgba(255,255,255,0.08)",
-                              }}
-                            >
+                            <div style={totalRowStyle}>
                               <span style={{ opacity: 0.9 }}>Total</span>
-                              <span style={{ fontWeight: 800 }}>
-                                {formatMoneyTND(total)} TND
-                              </span>
+                              <span style={{ fontWeight: 800 }}>{formatMoneyTND(total)} TND</span>
                             </div>
                           </div>
                         ) : null}
@@ -527,25 +382,59 @@ export default function DailyDigestPanel() {
         ) : null}
 
         {/* Raw Telegram text */}
-        <div
-          style={{
-            background: "#050a14",
-            border: "1px solid rgba(255,255,255,0.08)",
-            borderRadius: 10,
-            padding: 12,
-            fontFamily:
-              "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
-            whiteSpace: "pre-wrap",
-            fontSize: 12,
-            lineHeight: 1.35,
-          }}
-        >
+        <div style={rawBoxStyle}>
           {textPreview ? textPreview : "Click Preview to generate the message text…"}
         </div>
       </div>
     </div>
   );
 }
+
+/* ---------------- Styles ---------------- */
+
+const panelStyle = {
+  marginTop: 16,
+  background: "#0b1220",
+  border: "1px solid rgba(255,255,255,0.08)",
+  borderRadius: 12,
+  padding: 16,
+  color: "#e5e7eb",
+  width: "100%",
+  boxSizing: "border-box",
+  overflowX: "hidden", // ✅ prevents page horizontal scroll from this panel
+};
+
+const headerRowStyle = {
+  display: "flex",
+  justifyContent: "space-between",
+  gap: 12,
+  flexWrap: "wrap",
+  boxSizing: "border-box",
+};
+
+const headerButtonsStyle = {
+  display: "flex",
+  gap: 10,
+  alignItems: "center",
+  flexWrap: "wrap",
+};
+
+const scheduleBoxStyle = {
+  marginTop: 14,
+  padding: 12,
+  borderRadius: 10,
+  background: "rgba(255,255,255,0.03)",
+  border: "1px solid rgba(255,255,255,0.06)",
+  boxSizing: "border-box",
+};
+
+const scheduleRowStyle = {
+  display: "flex",
+  gap: 12,
+  alignItems: "center",
+  flexWrap: "wrap",
+  boxSizing: "border-box",
+};
 
 function btnStyle(opacity = 1, primary = false) {
   return {
@@ -558,6 +447,7 @@ function btnStyle(opacity = 1, primary = false) {
     fontSize: 13,
     cursor: "pointer",
     fontWeight: 650,
+    boxSizing: "border-box",
   };
 }
 
@@ -578,6 +468,15 @@ const inputStyle = {
   padding: "6px 8px",
   borderRadius: 8,
   outline: "none",
+  boxSizing: "border-box",
+};
+
+const gridStyle = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+  gap: 12,
+  marginBottom: 12,
+  boxSizing: "border-box",
 };
 
 const cardStyle = {
@@ -585,6 +484,13 @@ const cardStyle = {
   border: "1px solid rgba(255,255,255,0.06)",
   borderRadius: 12,
   padding: 12,
+  boxSizing: "border-box",
+  minWidth: 0,
+};
+
+const rightCardStyle = {
+  ...cardStyle,
+  overflow: "hidden", // ✅ contain children
 };
 
 const rowStyle = {
@@ -592,12 +498,22 @@ const rowStyle = {
   justifyContent: "space-between",
   gap: 10,
   fontSize: 12,
+  minWidth: 0,
+};
+
+const totalRowStyle = {
+  ...rowStyle,
+  marginTop: 8,
+  paddingTop: 8,
+  borderTop: "1px solid rgba(255,255,255,0.08)",
 };
 
 const scrollAreaStyle = {
   maxHeight: 360,
   overflowY: "auto",
+  overflowX: "hidden", // ✅ no horizontal scroll inside
   paddingRight: 6,
+  boxSizing: "border-box",
 };
 
 const stickyFiltersStyle = {
@@ -614,12 +530,15 @@ const stickyFiltersStyle = {
   flexWrap: "wrap",
   gap: 8,
   alignItems: "center",
+  boxSizing: "border-box",
+  maxWidth: "100%",
+  overflow: "hidden", // ✅ contain controls
 };
 
-
 const searchInputStyle = {
-  flex: "1 1 240px",
-  minWidth: 180,
+  flex: "1 1 220px",
+  minWidth: 140,        // ✅ smaller so it wraps earlier
+  maxWidth: "100%",
   background: "rgba(255,255,255,0.06)",
   border: "1px solid rgba(255,255,255,0.14)",
   color: "#f9fafb",
@@ -627,35 +546,38 @@ const searchInputStyle = {
   borderRadius: 10,
   outline: "none",
   fontSize: 13,
+  boxSizing: "border-box",
 };
 
 const selectStyle = {
-  flex: "0 1 170px",
-  minWidth: 150,
-  background: "rgba(255,255,255,0.08)",
-  border: "1px solid rgba(255,255,255,0.16)",
+  flex: "1 1 160px",    // ✅ allow shrinking & wrapping
+  minWidth: 120,
+  maxWidth: "100%",
+  background: "rgba(255,255,255,0.10)",
+  border: "1px solid rgba(255,255,255,0.20)",
   color: "#ffffff",
   padding: "9px 12px",
   borderRadius: 10,
   outline: "none",
   fontSize: 13,
-  fontWeight: 650,
-
-  // helps in some browsers
+  fontWeight: 700,
   appearance: "none",
+  boxSizing: "border-box",
 };
 
 const miniBtnStyle = {
-  flex: "0 0 auto",
-  background: "rgba(255,255,255,0.08)",
+  flex: "0 1 auto",
+  maxWidth: "100%",
+  background: "rgba(255,255,255,0.10)",
   color: "#ffffff",
-  border: "1px solid rgba(255,255,255,0.16)",
+  border: "1px solid rgba(255,255,255,0.20)",
   borderRadius: 10,
   padding: "9px 12px",
   fontSize: 12,
   cursor: "pointer",
-  fontWeight: 750,
+  fontWeight: 800,
   whiteSpace: "nowrap",
+  boxSizing: "border-box",
 };
 
 const monthHeaderStyle = {
@@ -668,4 +590,19 @@ const monthHeaderStyle = {
   border: "1px solid rgba(255,255,255,0.06)",
   cursor: "pointer",
   userSelect: "none",
+  boxSizing: "border-box",
+  minWidth: 0,
+};
+
+const rawBoxStyle = {
+  background: "#050a14",
+  border: "1px solid rgba(255,255,255,0.08)",
+  borderRadius: 10,
+  padding: 12,
+  fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+  whiteSpace: "pre-wrap",
+  fontSize: 12,
+  lineHeight: 1.35,
+  boxSizing: "border-box",
+  overflowX: "hidden",
 };
