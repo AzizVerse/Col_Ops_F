@@ -1,6 +1,6 @@
 // src/api.js:
-const API_BASE = "https://col-ops-b-1.onrender.com";
-//const API_BASE = "http://localhost:8000";
+//const API_BASE = "https://col-ops-b-1.onrender.com";
+const API_BASE = "http://localhost:8000";
 let SESSION_ID = null;
 function getSessionId() {
   if (SESSION_ID) return SESSION_ID;
@@ -145,6 +145,16 @@ export async function confirmPaymentMatch({ amount_detected, row_index }) {
   if (!resp.ok) {
     throw new Error(await readError(resp, "confirmPaymentMatch failed"));
   }
+  return resp.json();
+}
+
+export async function confirmPaymentMatchGroup({ amount_detected, row_indexes }) {
+  const resp = await authFetch(`${API_BASE}/api/payments/confirm-match-group`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ amount_detected, row_indexes }),
+  });
+  if (!resp.ok) throw new Error(await readError(resp, "confirmPaymentMatchGroup failed"));
   return resp.json();
 }
 
@@ -360,3 +370,91 @@ export async function sendDailyDigestNow() {
   }
   return resp.json(); // { status: "sent", today: "YYYY-MM-DD" }
 }
+
+/* ======================
+ * NEGOTIATIONS (RFQ monitoring)
+ * ====================== */
+
+// ===== NEGOTIATIONS (RFQ) =====
+
+export async function fetchNegotiationPending() {
+  const resp = await authFetch(`${API_BASE}/api/negotiations/pending`);
+  if (!resp.ok) throw new Error(await readError(resp, "fetchNegotiationPending failed"));
+  return resp.json(); // { pending: [...] }
+}
+
+export async function fetchNegotiationItem(id) {
+  const resp = await authFetch(`${API_BASE}/api/negotiations/${id}`);
+  if (!resp.ok) throw new Error(await readError(resp, "fetchNegotiationItem failed"));
+  return resp.json();
+}
+
+export async function sendNegotiationReply(id, payload) {
+  const resp = await authFetch(`${API_BASE}/api/negotiations/${id}/send`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!resp.ok) throw new Error(await readError(resp, "sendNegotiationReply failed"));
+  return resp.json();
+}
+
+export async function pollNegotiationsNow() {
+  const resp = await authFetch(`${API_BASE}/api/negotiations/poll-now`, {
+    method: "POST",
+  });
+  if (!resp.ok) throw new Error(await readError(resp, "pollNegotiationsNow failed"));
+  return resp.json(); // {status, fetched, added, queue_size}
+}
+
+/* ======================
+ * NEGOTIATION FEED (Central desk view)
+ * ====================== */
+
+export async function fetchNegotiationFeed(limit = 200) {
+  const resp = await authFetch(`${API_BASE}/api/negotiation-feed?limit=${limit}`);
+  if (!resp.ok) throw new Error(await readError(resp, "fetchNegotiationFeed failed"));
+  return resp.json(); // { items: [...] }
+}
+
+export async function createNegotiationFeedEntry(payload) {
+  const resp = await authFetch(`${API_BASE}/api/negotiation-feed`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!resp.ok) throw new Error(await readError(resp, "createNegotiationFeedEntry failed"));
+  return resp.json(); // { status, item }
+}
+
+// ======================
+// MARKET QUOTES
+// ======================
+export async function fetchMarketQuotes(limit = 200) {
+  const resp = await authFetch(`${API_BASE}/api/market-quotes?limit=${limit}`);
+  if (!resp.ok) throw new Error(await readError(resp, "fetchMarketQuotes failed"));
+  return resp.json(); // { items: [...] }
+}
+
+export async function createMarketQuote(payload) {
+  const resp = await authFetch(`${API_BASE}/api/market-quotes`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!resp.ok) throw new Error(await readError(resp, "createMarketQuote failed"));
+  return resp.json(); // { status, item }
+}
+
+export async function fetchFxLiveRates({ date, time, window = 10, limit = 200 }) {
+  const params = new URLSearchParams();
+  if (date) params.set("date", date);
+  if (time) params.set("time", time);
+  params.set("window", String(window));
+  params.set("limit", String(limit));
+
+  const resp = await authFetch(`${API_BASE}/api/fx-live-rates?${params.toString()}`);
+  if (!resp.ok) throw new Error(await readError(resp, "fetchFxLiveRates failed"));
+  return resp.json();
+}
+

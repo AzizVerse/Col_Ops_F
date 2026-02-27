@@ -1,4 +1,6 @@
 // src/components/monitor/QueueCard.jsx
+import { formatRowIndexes } from "../../util/helper";
+
 export function QueueCard({ pendingCount, nextPending }) {
   return (
     <div
@@ -11,6 +13,7 @@ export function QueueCard({ pendingCount, nextPending }) {
       }}
     >
       <div style={{ fontSize: 14, color: "#9ca3af" }}>Queue</div>
+
       <div
         style={{
           marginTop: 4,
@@ -21,15 +24,18 @@ export function QueueCard({ pendingCount, nextPending }) {
       >
         {pendingCount} pending
       </div>
+
       {nextPending && (
         <div style={{ marginTop: 6, fontSize: 12, color: "#9ca3af" }}>
           Next:{" "}
-          {nextPending.amount_tnd.toLocaleString("fr-FR", {
+          {Number(nextPending.amount_tnd || 0).toLocaleString("fr-FR", {
             minimumFractionDigits: 3,
           })}{" "}
           TND – {nextPending.date}
           <br />
-          Time left: {nextPending.hours_left.toFixed(1)} h
+          Invoices: {formatRowIndexes(nextPending)}
+          <br />
+          Time left: {Number(nextPending.hours_left ?? 0).toFixed(1)} h
         </div>
       )}
     </div>

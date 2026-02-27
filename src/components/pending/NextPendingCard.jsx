@@ -1,4 +1,10 @@
 // src/components/pending/NextPendingCard.jsx
+import {
+  formatRowIndexes,
+  getInvoiceItems,
+  formatMoneyTND,
+} from "../../util/helper";
+
 export function NextPendingCard({
   nextPending,
   handleConfirm,
@@ -7,6 +13,13 @@ export function NextPendingCard({
   cancellingId,
 }) {
   if (!nextPending) return null;
+
+  const invoiceItems = getInvoiceItems(nextPending);
+
+  const sumAmount = Number(nextPending.sum_amount);
+  const hasSumAmount = Number.isFinite(sumAmount) && sumAmount > 0;
+
+  const transferAmount = Number(nextPending.amount_tnd || 0);
 
   return (
     <div
@@ -25,6 +38,7 @@ export function NextPendingCard({
         Review this payment and confirm that the matched client is correct, or
         cancel if the match is not valid.
       </p>
+
       <div
         style={{
           display: "flex",
@@ -33,54 +47,114 @@ export function NextPendingCard({
           flexWrap: "wrap",
         }}
       >
+        {/* Left block */}
         <div>
           <div style={{ fontSize: 13, color: "#9ca3af" }}>Date</div>
           <div style={{ fontWeight: 600 }}>{nextPending.date}</div>
+
           <div style={{ fontSize: 13, color: "#9ca3af", marginTop: 8 }}>
-            Amount
+            Amount (transfer)
           </div>
           <div
             style={{
-              fontWeight: 700,
+              fontWeight: 800,
               color: "#22c55e",
               fontVariantNumeric: "tabular-nums",
             }}
           >
-            {nextPending.amount_tnd.toLocaleString("fr-FR", {
-              minimumFractionDigits: 3,
-            })}{" "}
+            {transferAmount.toLocaleString("fr-FR", { minimumFractionDigits: 3 })}{" "}
             TND
           </div>
+
+          {hasSumAmount && (
+            <>
+              <div style={{ fontSize: 13, color: "#9ca3af", marginTop: 8 }}>
+                Sum of invoices
+              </div>
+              <div
+                style={{
+                  fontWeight: 800,
+                  fontVariantNumeric: "tabular-nums",
+                }}
+              >
+                {sumAmount.toLocaleString("fr-FR", { minimumFractionDigits: 3 })}{" "}
+                TND
+              </div>
+            </>
+          )}
         </div>
 
-        <div>
+        {/* Middle block */}
+        <div style={{ minWidth: 260 }}>
           <div style={{ fontSize: 13, color: "#9ca3af" }}>Matched client</div>
-          <div style={{ fontWeight: 600 }}>
+          <div style={{ fontWeight: 700 }}>
             {nextPending.matched_client || "—"}
           </div>
 
-          <div style={{ fontSize: 13, color: "#9ca3af", marginTop: 8 }}>
+          <div style={{ fontSize: 13, color: "#9ca3af", marginTop: 10 }}>
+            Invoices matched
+          </div>
+          <div style={{ fontWeight: 700 }}>{formatRowIndexes(nextPending)}</div>
+
+          <div style={{ fontSize: 13, color: "#9ca3af", marginTop: 10 }}>
+            Invoices details
+          </div>
+
+          {invoiceItems.length === 0 ? (
+            <div style={{ fontWeight: 600 }}>—</div>
+          ) : (
+            <div style={{ marginTop: 6, display: "grid", gap: 6 }}>
+              {invoiceItems.map((it) => (
+                <div
+                  key={it.row_index}
+                  style={{
+                    padding: "8px 10px",
+                    borderRadius: 10,
+                    background: "#020617",
+                    border: "1px solid #1f2937",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    gap: 12,
+                    fontVariantNumeric: "tabular-nums",
+                    alignItems: "center",
+                  }}
+                >
+                  <div style={{ fontWeight: 700 }}>
+                #{it.row_index}
+                {it.invoice_number ? ` — ${it.invoice_number}` : ""}
+                {it.month ? ` — ${it.month}` : ""}
+              </div>
+                  <div style={{ fontWeight: 900 }}>
+                    {formatMoneyTND(it.invoice_amount)}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div style={{ fontSize: 13, color: "#9ca3af", marginTop: 10 }}>
             Confidence
           </div>
-          <div style={{ fontWeight: 600 }}>
+          <div style={{ fontWeight: 700 }}>
             {(((nextPending.confidence ?? 0) * 100).toFixed(0))}%
           </div>
 
-          <div style={{ fontSize: 13, color: "#9ca3af", marginTop: 8 }}>
+          <div style={{ fontSize: 13, color: "#9ca3af", marginTop: 10 }}>
             Diff to nearest
           </div>
-          <div style={{ fontWeight: 600 }}>
-            {(nextPending.nearest_diff ?? 0).toFixed(3)} TND
+          <div style={{ fontWeight: 700 }}>
+            {Number(nextPending.nearest_diff ?? 0).toFixed(3)} TND
           </div>
 
-          <div style={{ fontSize: 13, color: "#9ca3af", marginTop: 8 }}>
+          <div style={{ fontSize: 13, color: "#9ca3af", marginTop: 10 }}>
             Time left before expiry
           </div>
-          <div style={{ fontWeight: 600 }}>
-            {nextPending.hours_left.toFixed(1)} hours
+          <div style={{ fontWeight: 700 }}>
+            {Number(nextPending.hours_left ?? 0).toFixed(1)} hours
           </div>
         </div>
 
+        {/* Right block */}
         <div
           style={{
             alignSelf: "center",
@@ -96,10 +170,9 @@ export function NextPendingCard({
               padding: "10px 18px",
               borderRadius: 999,
               border: "none",
-              background:
-                confirmingId === nextPending.id ? "#6b7280" : "#22c55e",
+              background: confirmingId === nextPending.id ? "#6b7280" : "#22c55e",
               color: "#020617",
-              fontWeight: 700,
+              fontWeight: 800,
               cursor: confirmingId === nextPending.id ? "default" : "pointer",
             }}
           >
@@ -113,10 +186,9 @@ export function NextPendingCard({
               padding: "10px 18px",
               borderRadius: 999,
               border: "1px solid #f97373",
-              background:
-                cancellingId === nextPending.id ? "#111827" : "#0f172a",
+              background: cancellingId === nextPending.id ? "#111827" : "#0f172a",
               color: "#f97373",
-              fontWeight: 700,
+              fontWeight: 800,
               cursor: cancellingId === nextPending.id ? "default" : "pointer",
             }}
           >

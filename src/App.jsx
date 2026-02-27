@@ -1,4 +1,4 @@
-// src/App.jsx
+// src/App.jsx  (updated)
 import { useState } from "react";
 
 import { AppShell } from "./components/layout/AppShell";
@@ -15,6 +15,9 @@ import { useAuth } from "./components/auth/AuthContext";
 import InvoiceReminders from "./components/InvoiceReminders.jsx";
 import BusinessCardUploader from "./components/BusinessCardUploader.jsx";
 import DailyDigestPanel from "./components/digest/DailyDigestPanel.jsx";
+import NegotiationsPanel from "./components/negotiations/NegotiationsPanel.jsx";
+import FxLiveRatesSearchPanel from "./components/negotiations/FxLiveRatesSearchPanel.jsx";
+import DeskPanel from "./components/desk/DeskPanel.jsx";
 
 function App() {
   const { isAuthenticated, checkingAuth, logout } = useAuth();
@@ -55,10 +58,8 @@ function App() {
     setHistorySource,
   } = engine;
 
-  // ✅ Tabs state (must be inside App(), before return)
   const [activeTab, setActiveTab] = useState("ops");
 
-  // While we’re checking if the cookie is valid
   if (checkingAuth) {
     return (
       <div
@@ -77,7 +78,6 @@ function App() {
     );
   }
 
-  // If not authenticated, show login screen
   if (!isAuthenticated) {
     return (
       <div
@@ -95,25 +95,13 @@ function App() {
     );
   }
 
-  // Authenticated dashboard
   return (
     <AppShell>
       <Header onLogout={logout} />
 
-      {/* ✅ Tabs */}
-      <div
-        style={{
-          display: "flex",
-          gap: 8,
-          marginTop: 10,
-          flexWrap: "wrap",
-        }}
-      >
-        <TabButton
-          label="Ops"
-          active={activeTab === "ops"}
-          onClick={() => setActiveTab("ops")}
-        />
+      {/* Tabs */}
+      <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
+        <TabButton label="Ops" active={activeTab === "ops"} onClick={() => setActiveTab("ops")} />
         <TabButton
           label="Daily Digest"
           active={activeTab === "digest"}
@@ -129,12 +117,22 @@ function App() {
           active={activeTab === "cards"}
           onClick={() => setActiveTab("cards")}
         />
+        <TabButton
+          label="Negotiations"
+          active={activeTab === "negotiations"}
+          onClick={() => setActiveTab("negotiations")}
+        />
+        <TabButton label="Desk Operations" active={activeTab === "desk"} onClick={() => setActiveTab("desk")} />
+          <TabButton
+          label="Live Rates"
+          active={activeTab === "liverates"}
+          onClick={() => setActiveTab("liverates")}
+/>
       </div>
 
-      {/* ✅ OPS TAB */}
+      {/* OPS */}
       {activeTab === "ops" && (
         <>
-          {/* Monitor + manual upload + history row */}
           <div
             style={{
               display: "flex",
@@ -180,9 +178,7 @@ function App() {
           </div>
 
           {error && (
-            <p style={{ color: "#f97373", marginTop: 10, fontSize: 14 }}>
-              {error}
-            </p>
+            <p style={{ color: "#f97373", marginTop: 10, fontSize: 14 }}>{error}</p>
           )}
 
           <NextPendingCard
@@ -204,14 +200,15 @@ function App() {
         </>
       )}
 
-      {/* ✅ DIGEST TAB */}
+      {/* Other tabs */}
       {activeTab === "digest" && <DailyDigestPanel />}
-
-      {/* ✅ REMINDERS TAB */}
       {activeTab === "reminders" && <InvoiceReminders />}
-
-      {/* ✅ CARDS TAB */}
       {activeTab === "cards" && <BusinessCardUploader />}
+      {activeTab === "negotiations" && <NegotiationsPanel />}
+
+      {/* Desk (Feed + Quotes) */}
+      {activeTab === "desk" && <DeskPanel />}
+      {activeTab === "liverates" && <FxLiveRatesSearchPanel />}
     </AppShell>
   );
 }

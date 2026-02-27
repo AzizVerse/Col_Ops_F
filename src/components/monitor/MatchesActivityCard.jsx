@@ -1,4 +1,6 @@
 // src/components/monitor/MatchesActivityCard.jsx
+import { formatRowIndexes } from "../../util/helper";
+
 export function MatchesActivityCard({ matches }) {
   if (!matches || matches.length === 0) return null;
 
@@ -16,17 +18,14 @@ export function MatchesActivityCard({ matches }) {
         Latest Matching Actions
       </h2>
 
-      <div
-        style={{
-          maxHeight: 220,
-          overflowY: "auto",
-          paddingRight: 4,
-        }}
-      >
+      <div style={{ maxHeight: 220, overflowY: "auto", paddingRight: 4 }}>
         {matches.map((m, i) => {
           const amount = Number(m.amount || m.amount_detected || 0);
           const invoiceAmount = Number(m.invoice_amount || 0);
           const diff = Number(m.diff || 0);
+
+          const sumAmount = Number(m.sum_amount);
+          const hasSumAmount = Number.isFinite(sumAmount) && sumAmount > 0;
 
           return (
             <div
@@ -37,12 +36,21 @@ export function MatchesActivityCard({ matches }) {
               }}
             >
               <div style={{ fontSize: 14, fontWeight: 600, color: "#e5e7eb" }}>
-                Matched {amount.toLocaleString("fr-FR", { minimumFractionDigits: 3 })} TND
+                Matched{" "}
+                {amount.toLocaleString("fr-FR", { minimumFractionDigits: 3 })} TND
               </div>
 
               <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 2 }}>
                 → {m.client || "Unknown client"} ({m.match_type})
               </div>
+
+              {hasSumAmount && (
+                <div style={{ fontSize: 12, color: "#6b7280" }}>
+                  Sum invoices:{" "}
+                  {sumAmount.toLocaleString("fr-FR", { minimumFractionDigits: 3 })}{" "}
+                  TND
+                </div>
+              )}
 
               <div style={{ fontSize: 12, color: "#6b7280" }}>
                 Diff: {diff.toFixed(3)} TND — Invoice:{" "}
@@ -51,14 +59,8 @@ export function MatchesActivityCard({ matches }) {
                 })}
               </div>
 
-              <div
-                style={{
-                  fontSize: 11,
-                  color: "#4b5563",
-                  marginTop: 2,
-                }}
-              >
-                Row #{m.row_index}
+              <div style={{ fontSize: 11, color: "#4b5563", marginTop: 2 }}>
+                {formatRowIndexes(m)}
               </div>
             </div>
           );
