@@ -458,3 +458,16 @@ export async function fetchFxLiveRates({ date, time, window = 10, limit = 200 })
   return resp.json();
 }
 
+// Manual search by amount -> queues an operation
+export async function matchByAmount({ amount_tnd, date, note }) {
+  const resp = await authFetch(`${API_BASE}/api/match-by-amount`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ amount_tnd, date, note }),
+  });
+
+  if (!resp.ok) {
+    throw new Error(await readError(resp, "matchByAmount failed"));
+  }
+  return resp.json();
+}

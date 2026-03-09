@@ -403,7 +403,7 @@ export function useColOpsEngine({ enabled = true } = {}) {
     setHistoryClientFilter,
     setHistoryMatchType,
     setHistorySource,
-
+    refreshBackendQueue,
     handleConfirm,
     handleCancel,
 

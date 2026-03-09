@@ -18,6 +18,7 @@ import DailyDigestPanel from "./components/digest/DailyDigestPanel.jsx";
 import NegotiationsPanel from "./components/negotiations/NegotiationsPanel.jsx";
 import FxLiveRatesSearchPanel from "./components/negotiations/FxLiveRatesSearchPanel.jsx";
 import DeskPanel from "./components/desk/DeskPanel.jsx";
+import { MatchByAmountCard } from "./components/pending/MatchByAmountCard.jsx";
 
 function App() {
   const { isAuthenticated, checkingAuth, logout } = useAuth();
@@ -180,6 +181,8 @@ function App() {
           {error && (
             <p style={{ color: "#f97373", marginTop: 10, fontSize: 14 }}>{error}</p>
           )}
+
+          <MatchByAmountCard onQueued={engine.refreshBackendQueue} />
 
           <NextPendingCard
             nextPending={nextPending}
