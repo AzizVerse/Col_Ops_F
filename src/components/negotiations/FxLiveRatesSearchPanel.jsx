@@ -1,20 +1,40 @@
 import { useMemo, useState } from "react";
 import { fetchFxLiveRates } from "../../api";
 
+const panelStyle = {
+  marginTop: 12,
+  display: "grid",
+  gap: 16,
+};
+
 const cardStyle = {
-  background: "rgba(255,255,255,0.035)",
+  background: "rgba(255,255,255,0.04)",
   border: "1px solid rgba(255,255,255,0.10)",
-  borderRadius: 14,
-  padding: 14,
+  borderRadius: 18,
+  padding: 18,
+  boxShadow: "0 10px 30px rgba(0,0,0,0.18)",
+};
+
+const titleStyle = {
+  fontWeight: 900,
+  color: "#e5e7eb",
+  fontSize: 16,
+  marginBottom: 6,
+};
+
+const subTitleStyle = {
+  fontSize: 13,
+  color: "rgba(229,231,235,0.65)",
+  marginBottom: 16,
 };
 
 const labelStyle = {
   fontSize: 12,
-  color: "rgba(229,231,235,0.75)",
+  color: "rgba(229,231,235,0.78)",
   fontWeight: 800,
-  marginBottom: 6,
+  marginBottom: 7,
   textTransform: "uppercase",
-  letterSpacing: "0.04em",
+  letterSpacing: "0.05em",
 };
 
 const inputStyle = {
@@ -22,72 +42,95 @@ const inputStyle = {
   background: "rgba(255,255,255,0.06)",
   color: "#e5e7eb",
   border: "1px solid rgba(255,255,255,0.14)",
-  borderRadius: 12,
-  padding: "10px 12px",
+  borderRadius: 14,
+  padding: "12px 14px",
   fontSize: 14,
   outline: "none",
+  minHeight: 44,
+  boxSizing: "border-box",
 };
 
-const btnStyle = (primary = true) => ({
-  background: primary ? "#2563eb" : "rgba(255,255,255,0.06)",
-  color: "#e5e7eb",
-  border: "1px solid rgba(255,255,255,0.14)",
-  borderRadius: 12,
-  padding: "10px 12px",
-  fontSize: 13,
-  cursor: "pointer",
+const buttonStyle = {
+  background: "linear-gradient(135deg, #2563eb, #1d4ed8)",
+  color: "#ffffff",
+  border: "none",
+  borderRadius: 14,
+  padding: "12px 18px",
+  fontSize: 14,
   fontWeight: 800,
-});
+  cursor: "pointer",
+  minHeight: 44,
+  boxShadow: "0 8px 20px rgba(37,99,235,0.28)",
+};
+
+const buttonDisabledStyle = {
+  ...buttonStyle,
+  opacity: 0.55,
+  cursor: "not-allowed",
+  boxShadow: "none",
+};
 
 const monoStyle = {
   fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
   fontVariantNumeric: "tabular-nums",
 };
 
+function todayISO() {
+  const d = new Date();
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+}
+
 export default function FxLiveRatesSearchPanel() {
-  const [dateStr, setDateStr] = useState("");       // optional
-  const [timeStr, setTimeStr] = useState("12:50");  // required
-  const [windowSeconds, setWindowSeconds] = useState(5);
-  const [limit, setLimit] = useState(200);
+  const [dateStr, setDateStr] = useState(todayISO());
+  const [timeStr, setTimeStr] = useState("12:50");
+  const [limit, setLimit] = useState(100);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [rows, setRows] = useState([]);
 
+  // hidden internal default
+  const windowSeconds = 320;
+
   const canSearch = useMemo(() => {
-    return String(timeStr || "").trim().length >= 4; // "HH:MM"
+    return String(timeStr || "").trim().length >= 4;
   }, [timeStr]);
 
   async function onSearch() {
-    if (!canSearch) return;
+    if (!canSearch || loading) return;
 
     setLoading(true);
     setError("");
+
     try {
       const data = await fetchFxLiveRates({
-        date: dateStr.trim() ? dateStr.trim() : null,
-        time: timeStr.trim(),
-        window: Number(windowSeconds) || 0,   // ✅ FIX
-        limit: Number(limit) || 200,
-        });
+        date: dateStr || null,
+        time: timeStr,
+        window: windowSeconds,
+        limit: Number(limit) || 100,
+      });
 
-      setRows(data.items || []);
-
+      setRows(Array.isArray(data?.items) ? data.items : []);
     } catch (e) {
       setError(String(e?.message || e));
+      setRows([]);
     } finally {
       setLoading(false);
     }
   }
 
-  // Build columns dynamically from returned rows
   const columns = useMemo(() => {
-    if (!rows.length) return ["ts"];
+    if (!rows.length) return ["timestamp"];
     const keys = new Set();
-    rows.forEach((r) => Object.keys(r || {}).forEach((k) => keys.add(k)));
-    // Put ts first, keep stable order
+    rows.forEach((row) => Object.keys(row || {}).forEach((key) => keys.add(key)));
+
     const arr = Array.from(keys);
     arr.sort((a, b) => {
+      if (a === "timestamp") return -1;
+      if (b === "timestamp") return 1;
       if (a === "ts") return -1;
       if (b === "ts") return 1;
       return a.localeCompare(b);
@@ -96,19 +139,26 @@ export default function FxLiveRatesSearchPanel() {
   }, [rows]);
 
   return (
-    <div style={{ marginTop: 12, display: "grid", gap: 16 }}>
-      {/* Search form */}
+    <div style={panelStyle}>
       <div style={cardStyle}>
-        <div style={{ fontWeight: 900, color: "#e5e7eb", marginBottom: 10 }}>
-          Reuters Live Rates Search
+        <div style={titleStyle}>Reuters Live Rates Search</div>
+        <div style={subTitleStyle}>
+          Choose a date, a time, and how many rows you want to display.
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1.1fr 1fr 0.8fr 0.8fr auto", gap: 12, alignItems: "end" }}>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr 0.8fr auto",
+            gap: 14,
+            alignItems: "end",
+          }}
+        >
           <div>
-            <div style={labelStyle}>Date (optional)</div>
+            <div style={labelStyle}>Date</div>
             <input
+              type="date"
               style={inputStyle}
-              placeholder="YYYY-MM-DD (empty = today)"
               value={dateStr}
               onChange={(e) => setDateStr(e.target.value)}
             />
@@ -117,106 +167,137 @@ export default function FxLiveRatesSearchPanel() {
           <div>
             <div style={labelStyle}>Time</div>
             <input
+              type="time"
+              step="1"
               style={{ ...inputStyle, ...monoStyle }}
-              placeholder="HH:MM or HH:MM:SS"
               value={timeStr}
               onChange={(e) => setTimeStr(e.target.value)}
             />
           </div>
 
           <div>
-            <div style={labelStyle}>Window (sec)</div>
+            <div style={labelStyle}>Number of lines</div>
             <input
+              type="number"
+              min="1"
+              max="1000"
               style={{ ...inputStyle, ...monoStyle }}
-              value={String(windowSeconds)}
-              onChange={(e) => setWindowSeconds(e.target.value)}
-              inputMode="numeric"
-            />
-          </div>
-
-          <div>
-            <div style={labelStyle}>Limit</div>
-            <input
-              style={{ ...inputStyle, ...monoStyle }}
-              value={String(limit)}
+              value={limit}
               onChange={(e) => setLimit(e.target.value)}
-              inputMode="numeric"
             />
           </div>
 
-          <button style={btnStyle(true)} onClick={onSearch} disabled={!canSearch || loading}>
+          <button
+            style={canSearch && !loading ? buttonStyle : buttonDisabledStyle}
+            onClick={onSearch}
+            disabled={!canSearch || loading}
+          >
             {loading ? "Searching..." : "Search"}
           </button>
         </div>
 
-        {error && <div style={{ marginTop: 10, color: "#f97373", fontSize: 13 }}>{error}</div>}
+        {error ? (
+          <div
+            style={{
+              marginTop: 14,
+              padding: "10px 12px",
+              borderRadius: 12,
+              background: "rgba(239,68,68,0.10)",
+              border: "1px solid rgba(239,68,68,0.22)",
+              color: "#fca5a5",
+              fontSize: 13,
+            }}
+          >
+            {error}
+          </div>
+        ) : null}
       </div>
 
-      {/* Results table */}
       <div style={{ ...cardStyle, padding: 0 }}>
-        <div style={{ padding: 14, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <div style={{ fontWeight: 900, color: "#e5e7eb" }}>Results</div>
-          <div style={{ fontSize: 12, color: "rgba(229,231,235,0.7)" }}>
+        <div
+          style={{
+            padding: 16,
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            borderBottom: "1px solid rgba(255,255,255,0.08)",
+          }}
+        >
+          <div style={{ fontWeight: 900, color: "#e5e7eb", fontSize: 15 }}>
+            Results
+          </div>
+          <div style={{ fontSize: 12, color: "rgba(229,231,235,0.72)" }}>
             Rows: {rows.length}
           </div>
         </div>
 
         <div
           style={{
-            maxHeight: 520,          // ✅ vertical scroll
+            maxHeight: 520,
             overflowY: "auto",
-            overflowX: "auto",       // ✅ horizontal scroll
-            borderTop: "1px solid rgba(255,255,255,0.08)",
+            overflowX: "auto",
           }}
         >
-          <table style={{ width: "100%", borderCollapse: "separate", borderSpacing: 0, fontSize: 13 }}>
+          <table
+            style={{
+              width: "100%",
+              borderCollapse: "separate",
+              borderSpacing: 0,
+              fontSize: 13,
+            }}
+          >
             <thead>
-              <tr style={{ textAlign: "left" }}>
-                {columns.map((c) => (
+              <tr>
+                {columns.map((column) => (
                   <th
-                    key={c}
+                    key={column}
                     style={{
                       position: "sticky",
                       top: 0,
-                      zIndex: 1,
-                      background: "rgba(2,6,23,0.92)",
+                      zIndex: 2,
+                      background: "rgba(2,6,23,0.96)",
                       color: "rgba(229,231,235,0.88)",
                       fontSize: 11,
                       fontWeight: 900,
-                      padding: "10px 10px",
-                      borderBottom: "1px solid rgba(255,255,255,0.12)",
+                      padding: "11px 12px",
+                      borderBottom: "1px solid rgba(255,255,255,0.10)",
+                      textAlign: "left",
                       whiteSpace: "nowrap",
                       textTransform: "uppercase",
                       letterSpacing: "0.05em",
                     }}
                   >
-                    {c}
+                    {column}
                   </th>
                 ))}
               </tr>
             </thead>
 
             <tbody>
-              {rows.map((r, idx) => {
-                const zebra = idx % 2 === 0 ? "rgba(255,255,255,0.02)" : "transparent";
+              {rows.map((row, index) => {
+                const zebra = index % 2 === 0 ? "rgba(255,255,255,0.02)" : "transparent";
+
                 return (
-                  <tr key={`${r.ts || "row"}-${idx}`} style={{ background: zebra }}>
-                    {columns.map((c) => {
-                      const v = r?.[c];
-                      const isNumber = typeof v === "number";
+                  <tr key={`${row.timestamp || row.ts || "row"}-${index}`} style={{ background: zebra }}>
+                    {columns.map((column) => {
+                      const value = row?.[column];
+                      const isNumber = typeof value === "number";
+
                       return (
                         <td
-                          key={c}
+                          key={column}
                           style={{
-                            padding: "10px 10px",
+                            padding: "10px 12px",
                             borderBottom: "1px solid rgba(255,255,255,0.06)",
                             color: "#e5e7eb",
                             whiteSpace: "nowrap",
-                            ...(isNumber ? monoStyle : null),
                             textAlign: isNumber ? "right" : "left",
+                            ...(isNumber ? monoStyle : {}),
                           }}
                         >
-                          {v === null || v === undefined || v === "" ? "—" : String(v)}
+                          {value === null || value === undefined || value === ""
+                            ? "—"
+                            : String(value)}
                         </td>
                       );
                     })}
@@ -226,8 +307,14 @@ export default function FxLiveRatesSearchPanel() {
 
               {!rows.length && !loading && (
                 <tr>
-                  <td colSpan={columns.length} style={{ padding: 14, color: "rgba(229,231,235,0.7)" }}>
-                    No results yet. Enter time and click Search.
+                  <td
+                    colSpan={columns.length}
+                    style={{
+                      padding: 18,
+                      color: "rgba(229,231,235,0.72)",
+                    }}
+                  >
+                    No results yet. Select a date and time, then click Search.
                   </td>
                 </tr>
               )}
