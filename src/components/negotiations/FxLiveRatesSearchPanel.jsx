@@ -83,6 +83,67 @@ function todayISO() {
   return `${yyyy}-${mm}-${dd}`;
 }
 
+function getColumnGroup(columnName) {
+  const c = String(columnName || "").toUpperCase();
+
+  if (c === "TIMESTAMP" || c === "TS") return "time";
+  if (c.includes("EURUSD")) return "eurusd";
+  if (c.includes("EUR_TND") || c.includes("ADJ_EUR") || c.includes("PCT_EUR")) return "eur";
+  if (c.includes("USD_TND") || c.includes("ADJ_USD") || c.includes("PCT_USD")) return "usd";
+  return "other";
+}
+
+function getHeaderStyle(group) {
+  const base = {
+    position: "sticky",
+    top: 0,
+    zIndex: 2,
+    color: "#e5e7eb",
+    fontSize: 11,
+    fontWeight: 900,
+    padding: "11px 12px",
+    borderBottom: "1px solid rgba(255,255,255,0.10)",
+    textAlign: "left",
+    whiteSpace: "nowrap",
+    textTransform: "uppercase",
+    letterSpacing: "0.05em",
+  };
+
+  if (group === "time") {
+    return {
+      ...base,
+      background: "rgba(15,23,42,0.98)",
+      color: "rgba(255,255,255,0.95)",
+    };
+  }
+
+  if (group === "eur") {
+    return {
+      ...base,
+      background: "rgba(21, 83, 45, 0.92)",
+    };
+  }
+
+  if (group === "usd") {
+    return {
+      ...base,
+      background: "rgba(30, 58, 138, 0.92)",
+    };
+  }
+
+  if (group === "eurusd") {
+    return {
+      ...base,
+      background: "rgba(91, 33, 182, 0.92)",
+    };
+  }
+
+  return {
+    ...base,
+    background: "rgba(55, 65, 81, 0.92)",
+  };
+}
+
 export default function FxLiveRatesSearchPanel() {
   const [dateStr, setDateStr] = useState(todayISO());
   const [timeStr, setTimeStr] = useState("12:50");
@@ -92,8 +153,8 @@ export default function FxLiveRatesSearchPanel() {
   const [error, setError] = useState("");
   const [rows, setRows] = useState([]);
 
-  // hidden internal default
-  const windowSeconds = 320;
+  // Hidden internal search tolerance
+  const windowSeconds = 60;
 
   const canSearch = useMemo(() => {
     return String(timeStr || "").trim().length >= 4;
@@ -122,34 +183,54 @@ export default function FxLiveRatesSearchPanel() {
     }
   }
 
+  const normalizedRows = useMemo(() => {
+    return rows.map((row) => {
+      const normalized = { ...(row || {}) };
+
+      // Keep only one timestamp column
+      // Prefer "timestamp" if it exists, otherwise use "ts"
+      if (normalized.timestamp == null && normalized.ts != null) {
+        normalized.timestamp = normalized.ts;
+      }
+
+      delete normalized.ts;
+
+      return normalized;
+    });
+  }, [rows]);
+
   const columns = useMemo(() => {
-    if (!rows.length) return ["timestamp"];
+    if (!normalizedRows.length) return ["timestamp"];
+
     const keys = new Set();
-    rows.forEach((row) => Object.keys(row || {}).forEach((key) => keys.add(key)));
+
+    normalizedRows.forEach((row) => {
+      Object.keys(row || {}).forEach((key) => keys.add(key));
+    });
 
     const arr = Array.from(keys);
+
     arr.sort((a, b) => {
       if (a === "timestamp") return -1;
       if (b === "timestamp") return 1;
-      if (a === "ts") return -1;
-      if (b === "ts") return 1;
       return a.localeCompare(b);
     });
+
     return arr;
-  }, [rows]);
+  }, [normalizedRows]);
 
   return (
     <div style={panelStyle}>
       <div style={cardStyle}>
         <div style={titleStyle}>Reuters Live Rates Search</div>
         <div style={subTitleStyle}>
-          Choose a date, a time, and how many rows you want to display.
+          Select date, time and number of rows to display.
         </div>
 
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "1fr 1fr 0.8fr auto",
+            gridTemplateColumns: "1fr 1fr 0.85fr auto",
             gap: 14,
             alignItems: "end",
           }}
@@ -161,6 +242,9 @@ export default function FxLiveRatesSearchPanel() {
               style={inputStyle}
               value={dateStr}
               onChange={(e) => setDateStr(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") onSearch();
+              }}
             />
           </div>
 
@@ -172,6 +256,9 @@ export default function FxLiveRatesSearchPanel() {
               style={{ ...inputStyle, ...monoStyle }}
               value={timeStr}
               onChange={(e) => setTimeStr(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") onSearch();
+              }}
             />
           </div>
 
@@ -184,6 +271,9 @@ export default function FxLiveRatesSearchPanel() {
               style={{ ...inputStyle, ...monoStyle }}
               value={limit}
               onChange={(e) => setLimit(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") onSearch();
+              }}
             />
           </div>
 
@@ -227,99 +317,125 @@ export default function FxLiveRatesSearchPanel() {
             Results
           </div>
           <div style={{ fontSize: 12, color: "rgba(229,231,235,0.72)" }}>
-            Rows: {rows.length}
+            Rows: {normalizedRows.length}
           </div>
         </div>
 
         <div
           style={{
-            maxHeight: 520,
-            overflowY: "auto",
+            width: "100%",
             overflowX: "auto",
+            overflowY: "auto",
+            maxHeight: 520,
+            WebkitOverflowScrolling: "touch",
           }}
         >
-          <table
-            style={{
-              width: "100%",
-              borderCollapse: "separate",
-              borderSpacing: 0,
-              fontSize: 13,
-            }}
-          >
-            <thead>
-              <tr>
-                {columns.map((column) => (
-                  <th
-                    key={column}
-                    style={{
-                      position: "sticky",
-                      top: 0,
-                      zIndex: 2,
-                      background: "rgba(2,6,23,0.96)",
-                      color: "rgba(229,231,235,0.88)",
-                      fontSize: 11,
-                      fontWeight: 900,
-                      padding: "11px 12px",
-                      borderBottom: "1px solid rgba(255,255,255,0.10)",
-                      textAlign: "left",
-                      whiteSpace: "nowrap",
-                      textTransform: "uppercase",
-                      letterSpacing: "0.05em",
-                    }}
-                  >
-                    {column}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-
-            <tbody>
-              {rows.map((row, index) => {
-                const zebra = index % 2 === 0 ? "rgba(255,255,255,0.02)" : "transparent";
-
-                return (
-                  <tr key={`${row.timestamp || row.ts || "row"}-${index}`} style={{ background: zebra }}>
-                    {columns.map((column) => {
-                      const value = row?.[column];
-                      const isNumber = typeof value === "number";
-
-                      return (
-                        <td
-                          key={column}
-                          style={{
-                            padding: "10px 12px",
-                            borderBottom: "1px solid rgba(255,255,255,0.06)",
-                            color: "#e5e7eb",
-                            whiteSpace: "nowrap",
-                            textAlign: isNumber ? "right" : "left",
-                            ...(isNumber ? monoStyle : {}),
-                          }}
-                        >
-                          {value === null || value === undefined || value === ""
-                            ? "—"
-                            : String(value)}
-                        </td>
-                      );
-                    })}
-                  </tr>
-                );
-              })}
-
-              {!rows.length && !loading && (
+          <div style={{ minWidth: "1400px" }}>
+            <table
+              style={{
+                width: "100%",
+                borderCollapse: "separate",
+                borderSpacing: 0,
+                fontSize: 13,
+              }}
+            >
+              <thead>
                 <tr>
-                  <td
-                    colSpan={columns.length}
-                    style={{
-                      padding: 18,
-                      color: "rgba(229,231,235,0.72)",
-                    }}
-                  >
-                    No results yet. Select a date and time, then click Search.
-                  </td>
+                  {columns.map((column, index) => {
+                    const group = getColumnGroup(column);
+                    const isFirst = index === 0;
+
+                    return (
+                      <th
+                        key={column}
+                        style={{
+                          ...getHeaderStyle(group),
+                          ...(isFirst
+                            ? {
+                                position: "sticky",
+                                left: 0,
+                                zIndex: 3,
+                                boxShadow: "2px 0 0 rgba(255,255,255,0.04)",
+                              }
+                            : {}),
+                        }}
+                      >
+                        {column}
+                      </th>
+                    );
+                  })}
                 </tr>
-              )}
-            </tbody>
-          </table>
+              </thead>
+
+              <tbody>
+                {normalizedRows.map((row, rowIndex) => {
+                  const zebra =
+                    rowIndex % 2 === 0
+                      ? "rgba(255,255,255,0.02)"
+                      : "transparent";
+
+                  return (
+                    <tr key={`${row.timestamp || "row"}-${rowIndex}`} style={{ background: zebra }}>
+                      {columns.map((column, colIndex) => {
+                        const value = row?.[column];
+                        const isNumber = typeof value === "number";
+                        const group = getColumnGroup(column);
+                        const isFirst = colIndex === 0;
+
+                        let cellTint = "transparent";
+                        if (group === "eur") cellTint = "rgba(34,197,94,0.04)";
+                        if (group === "usd") cellTint = "rgba(59,130,246,0.05)";
+                        if (group === "eurusd") cellTint = "rgba(168,85,247,0.05)";
+
+                        return (
+                          <td
+                            key={column}
+                            style={{
+                              padding: "10px 12px",
+                              borderBottom: "1px solid rgba(255,255,255,0.06)",
+                              color: "#e5e7eb",
+                              whiteSpace: "nowrap",
+                              textAlign: isNumber ? "right" : "left",
+                              background: isFirst
+                                ? "rgba(15,23,42,0.98)"
+                                : cellTint,
+                              ...(isNumber ? monoStyle : {}),
+                              ...(isFirst
+                                ? {
+                                    position: "sticky",
+                                    left: 0,
+                                    zIndex: 1,
+                                    boxShadow: "2px 0 0 rgba(255,255,255,0.04)",
+                                  }
+                                : {}),
+                            }}
+                          >
+                            {value === null || value === undefined || value === ""
+                              ? "—"
+                              : String(value)}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  );
+                })}
+
+                {!normalizedRows.length && !loading && (
+                  <tr>
+                    <td
+                      colSpan={columns.length}
+                      style={{
+                        padding: 18,
+                        color: "rgba(229,231,235,0.72)",
+                      }}
+                    >
+                      No results yet. Select a date and time, then click Search.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>
