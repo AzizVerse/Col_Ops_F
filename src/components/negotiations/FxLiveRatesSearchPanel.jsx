@@ -43,11 +43,13 @@ const inputStyle = {
   color: "#e5e7eb",
   border: "1px solid rgba(255,255,255,0.14)",
   borderRadius: 14,
-  padding: "12px 14px",
+  padding: "12px 16px",
   fontSize: 14,
   outline: "none",
   minHeight: 44,
   boxSizing: "border-box",
+  colorScheme: "dark",
+  cursor: "pointer",
 };
 
 const buttonStyle = {
@@ -81,6 +83,22 @@ function todayISO() {
   const mm = String(d.getMonth() + 1).padStart(2, "0");
   const dd = String(d.getDate()).padStart(2, "0");
   return `${yyyy}-${mm}-${dd}`;
+}
+
+function formatTimestamp(value) {
+  if (!value) return "—";
+
+  const dt = new Date(value);
+  if (Number.isNaN(dt.getTime())) return String(value);
+
+  const dd = String(dt.getDate()).padStart(2, "0");
+  const mm = String(dt.getMonth() + 1).padStart(2, "0");
+  const yyyy = dt.getFullYear();
+  const hh = String(dt.getHours()).padStart(2, "0");
+  const mi = String(dt.getMinutes()).padStart(2, "0");
+  const ss = String(dt.getSeconds()).padStart(2, "0");
+
+  return `${dd}/${mm}/${yyyy} ${hh}:${mi}:${ss}`;
 }
 
 function getColumnGroup(columnName) {
@@ -153,7 +171,6 @@ export default function FxLiveRatesSearchPanel() {
   const [error, setError] = useState("");
   const [rows, setRows] = useState([]);
 
-  // Hidden internal search tolerance
   const windowSeconds = 60;
 
   const canSearch = useMemo(() => {
@@ -187,8 +204,6 @@ export default function FxLiveRatesSearchPanel() {
     return rows.map((row) => {
       const normalized = { ...(row || {}) };
 
-      // Keep only one timestamp column
-      // Prefer "timestamp" if it exists, otherwise use "ts"
       if (normalized.timestamp == null && normalized.ts != null) {
         normalized.timestamp = normalized.ts;
       }
@@ -268,7 +283,7 @@ export default function FxLiveRatesSearchPanel() {
               type="number"
               min="1"
               max="1000"
-              style={{ ...inputStyle, ...monoStyle }}
+              style={{ ...inputStyle, ...monoStyle, cursor: "text" }}
               value={limit}
               onChange={(e) => setLimit(e.target.value)}
               onKeyDown={(e) => {
@@ -360,7 +375,7 @@ export default function FxLiveRatesSearchPanel() {
                             : {}),
                         }}
                       >
-                        {column}
+                        {column === "timestamp" ? "Date / Time" : column}
                       </th>
                     );
                   })}
@@ -377,8 +392,9 @@ export default function FxLiveRatesSearchPanel() {
                   return (
                     <tr key={`${row.timestamp || "row"}-${rowIndex}`} style={{ background: zebra }}>
                       {columns.map((column, colIndex) => {
-                        const value = row?.[column];
-                        const isNumber = typeof value === "number";
+                        const rawValue = row?.[column];
+                        const value = column === "timestamp" ? formatTimestamp(rawValue) : rawValue;
+                        const isNumber = typeof rawValue === "number";
                         const group = getColumnGroup(column);
                         const isFirst = colIndex === 0;
 
