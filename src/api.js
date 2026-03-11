@@ -436,6 +436,7 @@ export async function fetchMarketQuotes(limit = 200) {
   return resp.json(); // { items: [...] }
 }
 
+
 export async function createMarketQuote(payload) {
   const resp = await authFetch(`${API_BASE}/api/market-quotes`, {
     method: "POST",
@@ -445,6 +446,25 @@ export async function createMarketQuote(payload) {
   if (!resp.ok) throw new Error(await readError(resp, "createMarketQuote failed"));
   return resp.json(); // { status, item }
 }
+export async function confirmMarketQuote(quoteId, payload) {
+  const resp = await authFetch(`${API_BASE}/api/market-quotes/${quoteId}/confirm`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!resp.ok) throw new Error(await readError(resp, "confirmMarketQuote failed"));
+  return resp.json();
+}
+export async function confirmNegotiationFeedEntry(negotiationId, payload) {
+  const resp = await authFetch(`${API_BASE}/api/negotiation-feed/${negotiationId}/confirm`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!resp.ok) throw new Error(await readError(resp, "confirmNegotiationFeedEntry failed"));
+  return resp.json();
+}
+
 
 export async function fetchFxLiveRates({ date, time, window = 10, limit = 200 }) {
   const params = new URLSearchParams();
@@ -471,3 +491,4 @@ export async function matchByAmount({ amount_tnd, date, note }) {
   }
   return resp.json();
 }
+

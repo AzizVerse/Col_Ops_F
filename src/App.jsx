@@ -125,7 +125,7 @@ function App() {
         />
         <TabButton label="Desk Operations" active={activeTab === "desk"} onClick={() => setActiveTab("desk")} />
           <TabButton
-          label="Live Rates"
+          label="Reuters Rates"
           active={activeTab === "liverates"}
           onClick={() => setActiveTab("liverates")}
 />
