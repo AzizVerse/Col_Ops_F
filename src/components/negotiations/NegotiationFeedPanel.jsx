@@ -228,7 +228,7 @@ const tableWrapStyle = {
 
 const tableStyle = {
   width: "100%",
-  minWidth: 1080,
+  minWidth: 1260,
   maxWidth: "100%",
   borderCollapse: "separate",
   borderSpacing: 0,
@@ -337,6 +337,17 @@ const statusPillStyle = (status) => {
 const subtleTextStyle = {
   color: "rgba(229,231,235,0.65)",
   fontSize: 12,
+};
+
+const eurusdCellStyle = {
+  display: "inline-block",
+  minWidth: 76,
+  textAlign: "right",
+  padding: "6px 8px",
+  borderRadius: 10,
+  background: "rgba(168,85,247,0.10)",
+  border: "1px solid rgba(168,85,247,0.20)",
+  color: "#d8b4fe",
 };
 
 /* ======================
@@ -1060,6 +1071,8 @@ export default function NegotiationFeedPanel() {
                     "amount_fcy",
                     "bank_name",
                     "quoted_rate",
+                    "EUR_USD_bid",
+                    "EUR_USD_ask",
                     "analyst_name",
                     "status",
                     "action",
@@ -1076,6 +1089,8 @@ export default function NegotiationFeedPanel() {
                   const zebra = idx % 2 === 0 ? "rgba(255,255,255,0.02)" : "transparent";
                   const rowStatus = String(r.status || "").toUpperCase();
                   const canConfirm = rowStatus === "NEGOTIATING";
+                  const eurusdBid = parseDecimal(r.eurusd_bid);
+                  const eurusdAsk = parseDecimal(r.eurusd_ask);
 
                   return (
                     <tr
@@ -1106,6 +1121,14 @@ export default function NegotiationFeedPanel() {
                         {r.quoted_rate == null || r.quoted_rate === ""
                           ? "—"
                           : Number(r.quoted_rate).toFixed(4)}
+                      </td>
+
+                      <td style={{ ...tdStyle, textAlign: "right", ...monoStyle }}>
+                        {eurusdBid == null ? "—" : <span style={eurusdCellStyle}>{eurusdBid.toFixed(4)}</span>}
+                      </td>
+
+                      <td style={{ ...tdStyle, textAlign: "right", ...monoStyle }}>
+                        {eurusdAsk == null ? "—" : <span style={eurusdCellStyle}>{eurusdAsk.toFixed(4)}</span>}
                       </td>
 
                       <td style={tdStyle}>{r.analyst_name}</td>
@@ -1147,7 +1170,7 @@ export default function NegotiationFeedPanel() {
 
                 {!filteredItems.length && !loading && (
                   <tr>
-                    <td colSpan={9} style={{ padding: 12, color: "rgba(229,231,235,0.7)" }}>
+                    <td colSpan={11} style={{ padding: 12, color: "rgba(229,231,235,0.7)" }}>
                       No desk feed entries found.
                     </td>
                   </tr>

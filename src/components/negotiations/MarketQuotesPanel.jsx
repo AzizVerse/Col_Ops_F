@@ -181,7 +181,7 @@ const tableWrapStyle = {
 
 const tableStyle = {
   width: "100%",
-  minWidth: 980,
+  minWidth: 1220,
   maxWidth: "100%",
   borderCollapse: "separate",
   borderSpacing: 0,
@@ -292,6 +292,17 @@ const normalPriceCellStyle = {
 const subtleTextStyle = {
   color: "rgba(229,231,235,0.65)",
   fontSize: 12,
+};
+
+const eurusdCellStyle = {
+  display: "inline-block",
+  minWidth: 76,
+  textAlign: "right",
+  padding: "6px 8px",
+  borderRadius: 10,
+  background: "rgba(168,85,247,0.10)",
+  border: "1px solid rgba(168,85,247,0.20)",
+  color: "#d8b4fe",
 };
 
 /* ======================
@@ -885,6 +896,8 @@ export default function MarketQuotesPanel() {
                     "bank_name",
                     "bid",
                     "ask",
+                    "eurusd_bid",
+                    "eurusd_ask",
                     "analyst_name",
                     "note",
                     "action",
@@ -902,6 +915,8 @@ export default function MarketQuotesPanel() {
                   const pair = String(r.currency_pair || "").trim();
                   const bid = parseDecimal(r.bid);
                   const ask = parseDecimal(r.ask);
+                  const eurusdBid = parseDecimal(r.eurusd_bid);
+                  const eurusdAsk = parseDecimal(r.eurusd_ask);
 
                   const bestBid = bestLevelsByPair[pair]?.bestBid ?? null;
                   const bestAsk = bestLevelsByPair[pair]?.bestAsk ?? null;
@@ -946,6 +961,14 @@ export default function MarketQuotesPanel() {
                         )}
                       </td>
 
+                      <td style={{ ...tdStyle, textAlign: "right", ...monoStyle }}>
+                        {eurusdBid == null ? "—" : <span style={eurusdCellStyle}>{eurusdBid.toFixed(4)}</span>}
+                      </td>
+
+                      <td style={{ ...tdStyle, textAlign: "right", ...monoStyle }}>
+                        {eurusdAsk == null ? "—" : <span style={eurusdCellStyle}>{eurusdAsk.toFixed(4)}</span>}
+                      </td>
+
                       <td style={tdStyle}>{r.analyst_name}</td>
 
                       <td
@@ -984,7 +1007,7 @@ export default function MarketQuotesPanel() {
 
                 {!filteredItems.length && !loading && (
                   <tr>
-                    <td colSpan={8} style={{ padding: 12, color: "rgba(229,231,235,0.7)" }}>
+                    <td colSpan={10} style={{ padding: 12, color: "rgba(229,231,235,0.7)" }}>
                       No quotes found.
                     </td>
                   </tr>

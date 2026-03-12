@@ -171,7 +171,7 @@ export default function FxLiveRatesSearchPanel() {
   const [error, setError] = useState("");
   const [rows, setRows] = useState([]);
 
-  const windowSeconds = 60;
+  const windowSeconds = 900;
 
   const canSearch = useMemo(() => {
     return String(timeStr || "").trim().length >= 4;
@@ -198,6 +198,8 @@ export default function FxLiveRatesSearchPanel() {
     } finally {
       setLoading(false);
     }
+
+    
   }
 
   const normalizedRows = useMemo(() => {
