@@ -1,20 +1,148 @@
-// src/components/negotiations/NegotiationFeedPanel.jsx
 import { useEffect, useMemo, useState } from "react";
 import {
   fetchNegotiationFeed,
   createNegotiationFeedEntry,
-  confirmNegotiationFeedEntry, // add this in api.js
+  confirmNegotiationFeedEntry,
+  deleteNegotiationFeedEntry,
 } from "../../api";
+
+/* ======================
+ * Helpers
+ * ====================== */
+
+function parseDecimal(value) {
+  if (value == null) return null;
+  const s = String(value).trim().replace(",", ".");
+  if (!s) return null;
+  const n = Number(s);
+  return Number.isFinite(n) ? n : null;
+}
+
+function parseAmount(value) {
+  if (value == null) return null;
+  const s = String(value).trim().replace(",", ".");
+  if (!s) return null;
+  const n = Number(s);
+  return Number.isFinite(n) ? n : null;
+}
+
+function pairAccent(pair) {
+  const p = String(pair || "").toUpperCase();
+
+  if (p === "EUR/TND") {
+    return {
+      color: "#60a5fa",
+      bg: "rgba(96,165,250,0.12)",
+      border: "rgba(96,165,250,0.28)",
+    };
+  }
+
+  if (p === "USD/TND") {
+    return {
+      color: "#34d399",
+      bg: "rgba(52,211,153,0.12)",
+      border: "rgba(52,211,153,0.28)",
+    };
+  }
+
+  if (p === "GBP/TND") {
+    return {
+      color: "#f59e0b",
+      bg: "rgba(245,158,11,0.12)",
+      border: "rgba(245,158,11,0.28)",
+    };
+  }
+
+  if (p === "CAD/TND") {
+    return {
+      color: "#f87171",
+      bg: "rgba(248,113,113,0.12)",
+      border: "rgba(248,113,113,0.28)",
+    };
+  }
+
+  return {
+    color: "#c4b5fd",
+    bg: "rgba(196,181,253,0.12)",
+    border: "rgba(196,181,253,0.28)",
+  };
+}
+
+function statusAccent(status) {
+  const s = String(status || "").toUpperCase();
+
+  if (s === "CONFIRMED") {
+    return {
+      color: "#86efac",
+      bg: "rgba(34,197,94,0.14)",
+      border: "rgba(34,197,94,0.28)",
+    };
+  }
+
+  return {
+    color: "#fde68a",
+    bg: "rgba(234,179,8,0.14)",
+    border: "rgba(234,179,8,0.28)",
+  };
+}
+
+function buildCreateValidationReason(form) {
+  const amount = parseAmount(form.amount_fcy);
+  const rate = parseDecimal(form.quoted_rate);
+  const status = String(form.status || "").toUpperCase();
+
+  if (!form.currency_pair.trim()) return "Select a currency pair.";
+  if (!form.side.trim()) return "Select a side.";
+  if (amount == null || amount <= 0) return "Amount is invalid.";
+  if (!form.bank_name.trim()) return "Select a bank.";
+  if (!form.analyst_name.trim()) return "Select an analyst.";
+  if (!status) return "Select a status.";
+
+  if (status === "CONFIRMED") {
+    if (rate == null || rate <= 0) return "Quoted rate is required for confirmed.";
+  }
+
+  if (status === "NEGOTIATING") {
+    if (String(form.quoted_rate).trim() !== "" && (rate == null || rate <= 0)) {
+      return "Quoted rate is invalid.";
+    }
+  }
+
+  return "";
+}
+
+function isCreateFormValid(form) {
+  return buildCreateValidationReason(form) === "";
+}
+
+function buildConfirmValidationReason(form) {
+  const rate = parseDecimal(form.quoted_rate);
+
+  if (!form.bank_name.trim()) return "Select a bank.";
+  if (rate == null || rate <= 0) return "Quoted rate is required.";
+  return "";
+}
+
+function isConfirmFormValid(form) {
+  return buildConfirmValidationReason(form) === "";
+}
 
 /* ======================
  * Styles
  * ====================== */
 
-const cardStyle = {
+const pageWrapStyle = {
+  marginTop: 12,
+};
+
+const panelStyle = {
   background: "rgba(255,255,255,0.035)",
   border: "1px solid rgba(255,255,255,0.10)",
   borderRadius: 14,
   padding: 14,
+  width: "100%",
+  maxWidth: "100%",
+  boxSizing: "border-box",
 };
 
 const labelStyle = {
@@ -51,7 +179,9 @@ const optionStyle = {
 const btnStyle = (primary = true) => ({
   background: primary ? "#2563eb" : "rgba(255,255,255,0.06)",
   color: "#e5e7eb",
-  border: "1px solid rgba(255,255,255,0.14)",
+  border: primary
+    ? "1px solid rgba(37,99,235,0.45)"
+    : "1px solid rgba(255,255,255,0.14)",
   borderRadius: 12,
   padding: "10px 12px",
   fontSize: 13,
@@ -59,28 +189,47 @@ const btnStyle = (primary = true) => ({
   fontWeight: 800,
 });
 
-const btnSmallStyle = (primary = true) => ({
-  background: primary ? "#2563eb" : "rgba(255,255,255,0.06)",
-  color: "#e5e7eb",
-  border: "1px solid rgba(255,255,255,0.14)",
-  borderRadius: 10,
-  padding: "6px 10px",
-  fontSize: 12,
-  cursor: "pointer",
-  fontWeight: 800,
-});
+const smallBtnStyle = (kind = "neutral") => {
+  let background = "rgba(255,255,255,0.06)";
+  let border = "1px solid rgba(255,255,255,0.14)";
+  let color = "#e5e7eb";
+
+  if (kind === "confirm") {
+    background = "rgba(34,197,94,0.14)";
+    border = "1px solid rgba(34,197,94,0.28)";
+    color = "#86efac";
+  }
+
+  if (kind === "delete") {
+    background = "rgba(239,68,68,0.14)";
+    border = "1px solid rgba(239,68,68,0.28)";
+    color = "#fca5a5";
+  }
+
+  return {
+    background,
+    color,
+    border,
+    borderRadius: 10,
+    padding: "6px 10px",
+    fontSize: 12,
+    cursor: "pointer",
+    fontWeight: 800,
+  };
+};
 
 const tableWrapStyle = {
-  ...cardStyle,
-  maxHeight: "72vh",
+  maxHeight: "74vh",
   overflowY: "auto",
   overflowX: "auto",
   position: "relative",
+  width: "100%",
 };
 
 const tableStyle = {
   width: "100%",
-  minWidth: 1200,
+  minWidth: 1080,
+  maxWidth: "100%",
   borderCollapse: "separate",
   borderSpacing: 0,
   fontSize: 13,
@@ -89,7 +238,7 @@ const tableStyle = {
 const thStyle = {
   position: "sticky",
   top: 0,
-  zIndex: 1,
+  zIndex: 2,
   background: "rgba(2,6,23,0.96)",
   color: "rgba(229,231,235,0.88)",
   textTransform: "uppercase",
@@ -116,15 +265,16 @@ const monoStyle = {
 
 const filterBarStyle = {
   display: "grid",
-  gridTemplateColumns: "1.2fr 1fr 1fr 1fr auto",
+  gridTemplateColumns: "minmax(220px,1.4fr) minmax(140px,1fr) minmax(140px,1fr) minmax(140px,1fr) auto",
   gap: 10,
   marginBottom: 12,
+  alignItems: "center",
 };
 
 const overlayStyle = {
   position: "fixed",
   inset: 0,
-  background: "rgba(2,6,23,0.65)",
+  background: "rgba(2,6,23,0.72)",
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
@@ -134,52 +284,74 @@ const overlayStyle = {
 
 const modalStyle = {
   width: "100%",
-  maxWidth: 520,
+  maxWidth: 720,
   background: "#0b1220",
   border: "1px solid rgba(255,255,255,0.12)",
-  borderRadius: 16,
+  borderRadius: 18,
   padding: 18,
   boxShadow: "0 20px 60px rgba(0,0,0,0.45)",
 };
 
-function statusPill(status) {
-  const s = String(status || "").toUpperCase();
-  let bg = "rgba(148,163,184,0.18)";
-  let br = "rgba(148,163,184,0.25)";
-  let color = "rgba(229,231,235,0.92)";
+const deleteModalStyle = {
+  width: "100%",
+  maxWidth: 460,
+  background: "#0b1220",
+  border: "1px solid rgba(255,255,255,0.12)",
+  borderRadius: 18,
+  padding: 18,
+  boxShadow: "0 20px 60px rgba(0,0,0,0.45)",
+};
 
-  if (s === "CONFIRMED") {
-    bg = "rgba(34,197,94,0.18)";
-    br = "rgba(34,197,94,0.30)";
-  } else if (s === "NEGOTIATING") {
-    bg = "rgba(234,179,8,0.18)";
-    br = "rgba(234,179,8,0.30)";
-  }
+const badgeStyle = (pair) => {
+  const accent = pairAccent(pair);
+  return {
+    display: "inline-flex",
+    alignItems: "center",
+    padding: "5px 10px",
+    borderRadius: 999,
+    background: accent.bg,
+    border: `1px solid ${accent.border}`,
+    color: accent.color,
+    fontWeight: 900,
+    fontSize: 12,
+    letterSpacing: "0.03em",
+  };
+};
 
-  return (
-    <span
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        padding: "4px 10px",
-        borderRadius: 999,
-        background: bg,
-        border: `1px solid ${br}`,
-        fontWeight: 900,
-        fontSize: 12,
-        color,
-      }}
-    >
-      {s || "—"}
-    </span>
-  );
-}
+const statusPillStyle = (status) => {
+  const accent = statusAccent(status);
+  return {
+    display: "inline-flex",
+    alignItems: "center",
+    padding: "5px 10px",
+    borderRadius: 999,
+    background: accent.bg,
+    border: `1px solid ${accent.border}`,
+    color: accent.color,
+    fontWeight: 900,
+    fontSize: 12,
+    letterSpacing: "0.03em",
+  };
+};
+
+const subtleTextStyle = {
+  color: "rgba(229,231,235,0.65)",
+  fontSize: 12,
+};
 
 /* ======================
  * Lists
  * ====================== */
 
-const CURRENCY_PAIRS = ["EUR/TND", "USD/TND", "GBP/TND", "EUR/USD", "EUR/GBP", "USD/GBP"];
+const CURRENCY_PAIRS = [
+  "EUR/TND",
+  "USD/TND",
+  "GBP/TND",
+  "CAD/TND",
+  "EUR/USD",
+  "EUR/GBP",
+  "USD/GBP",
+];
 
 const BANKS = [
   "BIAT",
@@ -212,52 +384,268 @@ const ANALYSTS = [
   "Heni Ghazouany",
 ];
 
+const SIDES = ["BUY", "SELL"];
 const STATUSES = ["NEGOTIATING", "CONFIRMED"];
 
-function ConfirmNegotiationModal({
-  open,
-  item,
-  busy,
-  bankName,
-  setBankName,
-  quotedRate,
-  setQuotedRate,
-  onClose,
-  onConfirm,
-}) {
-  if (!open || !item) return null;
+/* ======================
+ * Modals
+ * ====================== */
 
-  const canConfirm = bankName.trim() && Number(quotedRate) > 0;
+function CreateDeskFeedModal({
+  open,
+  onClose,
+  onSubmit,
+  posting,
+  error,
+  form,
+  setForm,
+}) {
+  if (!open) return null;
+
+  const canSubmit = isCreateFormValid(form);
+  const validationReason = buildCreateValidationReason(form);
 
   return (
     <div style={overlayStyle} onClick={onClose}>
       <div style={modalStyle} onClick={(e) => e.stopPropagation()}>
-        <div style={{ fontWeight: 900, fontSize: 18, color: "#e5e7eb", marginBottom: 8 }}>
-          Confirm Negotiation
-        </div>
-
-        <div style={{ color: "rgba(229,231,235,0.72)", fontSize: 13, marginBottom: 16 }}>
-          Update the bank and quoted rate, then validate to turn this deal into confirmed.
-        </div>
-
-        <div style={{ display: "grid", gap: 12 }}>
+        <div style={{ display: "flex", alignItems: "center", marginBottom: 14 }}>
           <div>
-            <div style={labelStyle}>Currency Pair</div>
-            <input style={inputStyle} value={item.currency_pair || ""} readOnly />
+            <div style={{ fontWeight: 900, fontSize: 18, color: "#e5e7eb" }}>
+              Add Desk Feed Ticket
+            </div>
+            <div style={{ ...subtleTextStyle, marginTop: 4 }}>
+              Negotiating can keep quoted rate empty. Confirmed requires quoted rate.
+            </div>
+          </div>
+
+          <button
+            type="button"
+            style={{ ...btnStyle(false), marginLeft: "auto" }}
+            onClick={onClose}
+            disabled={posting}
+          >
+            Close
+          </button>
+        </div>
+
+        <form onSubmit={onSubmit} style={{ display: "grid", gap: 12 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 140px", gap: 12 }}>
+            <div>
+              <div style={labelStyle}>Currency Pair</div>
+              <select
+                style={selectStyle}
+                value={form.currency_pair}
+                onChange={(e) => setForm({ ...form, currency_pair: e.target.value })}
+              >
+                {CURRENCY_PAIRS.map((p) => (
+                  <option key={p} value={p} style={optionStyle}>
+                    {p}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <div style={labelStyle}>Side</div>
+              <select
+                style={selectStyle}
+                value={form.side}
+                onChange={(e) => setForm({ ...form, side: e.target.value })}
+              >
+                {SIDES.map((s) => (
+                  <option key={s} value={s} style={optionStyle}>
+                    {s}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <div>
+              <div style={labelStyle}>Amount (FCY)</div>
+              <input
+                style={{ ...inputStyle, ...monoStyle }}
+                placeholder="e.g. 250000"
+                value={form.amount_fcy}
+                onChange={(e) => setForm({ ...form, amount_fcy: e.target.value })}
+                inputMode="decimal"
+              />
+            </div>
+
+            <div>
+              <div style={labelStyle}>Quoted Rate</div>
+              <input
+                style={{ ...inputStyle, ...monoStyle }}
+                placeholder={form.status === "NEGOTIATING" ? "optional while negotiating" : "e.g. 3.4230"}
+                value={form.quoted_rate}
+                onChange={(e) => setForm({ ...form, quoted_rate: e.target.value })}
+                inputMode="decimal"
+              />
+            </div>
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <div>
+              <div style={labelStyle}>Bank</div>
+              <select
+                style={selectStyle}
+                value={form.bank_name}
+                onChange={(e) => setForm({ ...form, bank_name: e.target.value })}
+              >
+                <option value="" style={optionStyle}>
+                  Select bank
+                </option>
+                {BANKS.map((b) => (
+                  <option key={b} value={b} style={optionStyle}>
+                    {b}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <div style={labelStyle}>Analyst</div>
+              <select
+                style={selectStyle}
+                value={form.analyst_name}
+                onChange={(e) => setForm({ ...form, analyst_name: e.target.value })}
+              >
+                <option value="" style={optionStyle}>
+                  Select analyst
+                </option>
+                {ANALYSTS.map((a) => (
+                  <option key={a} value={a} style={optionStyle}>
+                    {a}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
           <div>
-            <div style={labelStyle}>Bank</div>
-            <select style={selectStyle} value={bankName} onChange={(e) => setBankName(e.target.value)}>
-              <option value="" style={optionStyle}>
-                Select bank
-              </option>
-              {BANKS.map((b) => (
-                <option key={b} value={b} style={optionStyle}>
-                  {b}
+            <div style={labelStyle}>Status</div>
+            <select
+              style={selectStyle}
+              value={form.status}
+              onChange={(e) => setForm({ ...form, status: e.target.value })}
+            >
+              {STATUSES.map((s) => (
+                <option key={s} value={s} style={optionStyle}>
+                  {s}
                 </option>
               ))}
             </select>
+          </div>
+
+          <div style={{ display: "flex", gap: 10, alignItems: "center", marginTop: 4 }}>
+            <button
+              type="submit"
+              style={{
+                ...btnStyle(true),
+                opacity: !canSubmit || posting ? 0.5 : 1,
+                cursor: !canSubmit || posting ? "not-allowed" : "pointer",
+              }}
+              disabled={!canSubmit || posting}
+            >
+              {posting ? "Saving..." : "Save Ticket"}
+            </button>
+
+            <div style={{ ...subtleTextStyle, marginLeft: "auto" }}>
+              Comma or dot decimal accepted
+            </div>
+          </div>
+
+          {error && <div style={{ color: "#f97373", fontSize: 13 }}>{error}</div>}
+          {!error && !canSubmit && (
+            <div style={{ color: "rgba(229,231,235,0.55)", fontSize: 12 }}>
+              {validationReason || "Form is not valid yet."}
+            </div>
+          )}
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function ConfirmNegotiationModal({
+  open,
+  item,
+  posting,
+  error,
+  form,
+  setForm,
+  onClose,
+  onSubmit,
+}) {
+  if (!open || !item) return null;
+
+  const canSubmit = isConfirmFormValid(form);
+  const validationReason = buildConfirmValidationReason(form);
+
+  return (
+    <div style={overlayStyle} onClick={onClose}>
+      <div style={modalStyle} onClick={(e) => e.stopPropagation()}>
+        <div style={{ display: "flex", alignItems: "center", marginBottom: 14 }}>
+          <div>
+            <div style={{ fontWeight: 900, fontSize: 18, color: "#e5e7eb" }}>
+              Confirm Ticket
+            </div>
+            <div style={{ ...subtleTextStyle, marginTop: 4 }}>
+              Set bank and quoted rate, then confirm this negotiation.
+            </div>
+          </div>
+
+          <button
+            type="button"
+            style={{ ...btnStyle(false), marginLeft: "auto" }}
+            onClick={onClose}
+            disabled={posting}
+          >
+            Close
+          </button>
+        </div>
+
+        <form onSubmit={onSubmit} style={{ display: "grid", gap: 12 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 140px", gap: 12 }}>
+            <div>
+              <div style={labelStyle}>Currency Pair</div>
+              <input style={inputStyle} value={item.currency_pair || ""} readOnly />
+            </div>
+
+            <div>
+              <div style={labelStyle}>Side</div>
+              <input style={inputStyle} value={item.side || ""} readOnly />
+            </div>
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <div>
+              <div style={labelStyle}>Amount (FCY)</div>
+              <input
+                style={{ ...inputStyle, ...monoStyle }}
+                value={item.amount_fcy == null ? "" : Number(item.amount_fcy).toLocaleString()}
+                readOnly
+              />
+            </div>
+
+            <div>
+              <div style={labelStyle}>Bank</div>
+              <select
+                style={selectStyle}
+                value={form.bank_name}
+                onChange={(e) => setForm({ ...form, bank_name: e.target.value })}
+              >
+                <option value="" style={optionStyle}>
+                  Select bank
+                </option>
+                {BANKS.map((b) => (
+                  <option key={b} value={b} style={optionStyle}>
+                    {b}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
           <div>
@@ -265,19 +653,80 @@ function ConfirmNegotiationModal({
             <input
               style={{ ...inputStyle, ...monoStyle }}
               placeholder="e.g. 3.4230"
-              value={quotedRate}
-              onChange={(e) => setQuotedRate(e.target.value)}
+              value={form.quoted_rate}
+              onChange={(e) => setForm({ ...form, quoted_rate: e.target.value })}
               inputMode="decimal"
             />
           </div>
+
+          <div style={{ display: "flex", gap: 10, alignItems: "center", marginTop: 4 }}>
+            <button
+              type="submit"
+              style={{
+                ...btnStyle(true),
+                opacity: !canSubmit || posting ? 0.5 : 1,
+                cursor: !canSubmit || posting ? "not-allowed" : "pointer",
+              }}
+              disabled={!canSubmit || posting}
+            >
+              {posting ? "Confirming..." : "Confirm"}
+            </button>
+
+            <div style={{ ...subtleTextStyle, marginLeft: "auto" }}>
+              Quoted rate required
+            </div>
+          </div>
+
+          {error && <div style={{ color: "#f97373", fontSize: 13 }}>{error}</div>}
+          {!error && !canSubmit && (
+            <div style={{ color: "rgba(229,231,235,0.55)", fontSize: 12 }}>
+              {validationReason || "Form is not valid yet."}
+            </div>
+          )}
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function DeleteConfirmModal({
+  open,
+  item,
+  busy,
+  onClose,
+  onConfirm,
+}) {
+  if (!open || !item) return null;
+
+  return (
+    <div style={overlayStyle} onClick={onClose}>
+      <div style={deleteModalStyle} onClick={(e) => e.stopPropagation()}>
+        <div style={{ fontWeight: 900, fontSize: 18, color: "#e5e7eb", marginBottom: 8 }}>
+          Delete Desk Feed Ticket
+        </div>
+
+        <div style={{ color: "rgba(229,231,235,0.72)", fontSize: 13, lineHeight: 1.6 }}>
+          Are you sure you want to delete this ticket?
+          <br />
+          <br />
+          <strong>Pair:</strong> {item.currency_pair}
+          <br />
+          <strong>Bank:</strong> {item.bank_name || "—"}
+          <br />
+          <strong>Status:</strong> {item.status}
         </div>
 
         <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 18 }}>
           <button type="button" style={btnStyle(false)} onClick={onClose} disabled={busy}>
             Cancel
           </button>
-          <button type="button" style={btnStyle(true)} onClick={onConfirm} disabled={!canConfirm || busy}>
-            {busy ? "Confirming..." : "Validate & Confirm"}
+          <button
+            type="button"
+            style={{ ...btnStyle(true), background: "#dc2626", border: "1px solid rgba(220,38,38,0.45)" }}
+            onClick={onConfirm}
+            disabled={busy}
+          >
+            {busy ? "Deleting..." : "Delete"}
           </button>
         </div>
       </div>
@@ -285,14 +734,27 @@ function ConfirmNegotiationModal({
   );
 }
 
+/* ======================
+ * Component
+ * ====================== */
+
 export default function NegotiationFeedPanel() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [posting, setPosting] = useState(false);
-  const [confirming, setConfirming] = useState(false);
+
+  const [createPosting, setCreatePosting] = useState(false);
+  const [confirmPosting, setConfirmPosting] = useState(false);
+  const [deletePosting, setDeletePosting] = useState(false);
+
   const [error, setError] = useState("");
 
-  const [form, setForm] = useState({
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+
+  const [selectedItem, setSelectedItem] = useState(null);
+
+  const [createForm, setCreateForm] = useState({
     currency_pair: "EUR/TND",
     side: "SELL",
     amount_fcy: "",
@@ -302,36 +764,17 @@ export default function NegotiationFeedPanel() {
     status: "NEGOTIATING",
   });
 
+  const [confirmForm, setConfirmForm] = useState({
+    bank_name: "",
+    quoted_rate: "",
+  });
+
   const [filters, setFilters] = useState({
     q: "",
     currency_pair: "ALL",
     status: "ALL",
     bank_name: "ALL",
   });
-
-  const [confirmModalOpen, setConfirmModalOpen] = useState(false);
-  const [selectedItem, setSelectedItem] = useState(null);
-  const [confirmBankName, setConfirmBankName] = useState("");
-  const [confirmQuotedRate, setConfirmQuotedRate] = useState("");
-
-  const isNegotiating = form.status === "NEGOTIATING";
-  const isConfirmed = form.status === "CONFIRMED";
-
-  const canSubmit = useMemo(() => {
-    const amt = Number(form.amount_fcy);
-    const rate = Number(form.quoted_rate);
-
-    return (
-      form.currency_pair.trim() &&
-      form.side.trim() &&
-      Number.isFinite(amt) &&
-      amt > 0 &&
-      form.bank_name.trim() &&
-      form.analyst_name.trim() &&
-      form.status.trim() &&
-      (isNegotiating || (Number.isFinite(rate) && rate > 0))
-    );
-  }, [form, isNegotiating]);
 
   const filteredItems = useMemo(() => {
     const q = filters.q.trim().toLowerCase();
@@ -377,235 +820,166 @@ export default function NegotiationFeedPanel() {
     return () => clearInterval(t);
   }, []);
 
-  async function onSubmit(e) {
-    e.preventDefault();
-    if (!canSubmit) return;
+  function resetCreateForm() {
+    setCreateForm({
+      currency_pair: "EUR/TND",
+      side: "SELL",
+      amount_fcy: "",
+      bank_name: "",
+      quoted_rate: "",
+      analyst_name: "",
+      status: "NEGOTIATING",
+    });
+  }
 
-    setPosting(true);
+  function openCreateModal() {
+    setError("");
+    resetCreateForm();
+    setIsAddModalOpen(true);
+  }
+
+  function openConfirmModal(item) {
+    setError("");
+    setSelectedItem(item);
+    setConfirmForm({
+      bank_name: String(item.bank_name || ""),
+      quoted_rate: item.quoted_rate == null ? "" : String(item.quoted_rate),
+    });
+    setIsConfirmModalOpen(true);
+  }
+
+  function openDeleteModal(item) {
+    setError("");
+    setSelectedItem(item);
+    setIsDeleteModalOpen(true);
+  }
+
+  async function handleCreateSubmit(e) {
+    e.preventDefault();
+    if (!isCreateFormValid(createForm)) {
+      setError(buildCreateValidationReason(createForm));
+      return;
+    }
+
+    setCreatePosting(true);
     setError("");
 
     try {
-      await createNegotiationFeedEntry({
-        currency_pair: form.currency_pair.trim(),
-        side: form.side.trim().toUpperCase(),
-        amount_fcy: Number(form.amount_fcy),
-        bank_name: form.bank_name.trim(),
-        quoted_rate: isNegotiating && !form.quoted_rate ? null : Number(form.quoted_rate),
-        analyst_name: form.analyst_name.trim(),
-        status: form.status.trim().toUpperCase(),
-      });
+      const hasRate = String(createForm.quoted_rate).trim() !== "";
 
-      setForm((f) => ({
-        ...f,
-        amount_fcy: "",
-        bank_name: "",
-        quoted_rate: "",
-        status: "NEGOTIATING",
-      }));
+      const payload = {
+        currency_pair: createForm.currency_pair.trim(),
+        side: createForm.side.trim().toUpperCase(),
+        amount_fcy: parseAmount(createForm.amount_fcy),
+        bank_name: createForm.bank_name.trim(),
+        quoted_rate: hasRate ? parseDecimal(createForm.quoted_rate) : null,
+        analyst_name: createForm.analyst_name.trim(),
+        status: createForm.status.trim().toUpperCase(),
+      };
 
+      await createNegotiationFeedEntry(payload);
+      setIsAddModalOpen(false);
+      resetCreateForm();
       await refresh();
     } catch (e2) {
       setError(String(e2?.message || e2));
     } finally {
-      setPosting(false);
+      setCreatePosting(false);
     }
   }
 
-  function openConfirmModal(item) {
-    setSelectedItem(item);
-    setConfirmBankName(item.bank_name || "");
-    setConfirmQuotedRate(item.quoted_rate != null ? String(item.quoted_rate) : "");
-    setConfirmModalOpen(true);
-  }
+  async function handleConfirmSubmit(e) {
+    e.preventDefault();
+    if (!selectedItem?.negotiation_id) return;
 
-  function closeConfirmModal() {
-    if (confirming) return;
-    setConfirmModalOpen(false);
-    setSelectedItem(null);
-    setConfirmBankName("");
-    setConfirmQuotedRate("");
-  }
+    if (!isConfirmFormValid(confirmForm)) {
+      setError(buildConfirmValidationReason(confirmForm));
+      return;
+    }
 
-  async function handleConfirmNegotiation() {
-    if (!selectedItem) return;
-    if (!confirmBankName.trim() || !(Number(confirmQuotedRate) > 0)) return;
-
-    setConfirming(true);
+    setConfirmPosting(true);
     setError("");
 
     try {
-      await confirmNegotiationFeedEntry(selectedItem.negotiation_id, {
-        bank_name: confirmBankName.trim(),
-        quoted_rate: Number(confirmQuotedRate),
+      const payload = {
+        bank_name: confirmForm.bank_name.trim(),
+        quoted_rate: parseDecimal(confirmForm.quoted_rate),
         status: "CONFIRMED",
-      });
+      };
 
-      closeConfirmModal();
+      await confirmNegotiationFeedEntry(selectedItem.negotiation_id, payload);
+      setIsConfirmModalOpen(false);
+      setSelectedItem(null);
+      setConfirmForm({ bank_name: "", quoted_rate: "" });
       await refresh();
-    } catch (e) {
-      setError(String(e?.message || e));
+    } catch (e2) {
+      setError(String(e2?.message || e2));
     } finally {
-      setConfirming(false);
+      setConfirmPosting(false);
+    }
+  }
+
+  async function handleDeleteConfirm() {
+    if (!selectedItem?.negotiation_id) return;
+
+    setDeletePosting(true);
+    setError("");
+
+    try {
+      await deleteNegotiationFeedEntry(selectedItem.negotiation_id);
+      setIsDeleteModalOpen(false);
+      setSelectedItem(null);
+      await refresh();
+    } catch (e2) {
+      setError(String(e2?.message || e2));
+    } finally {
+      setDeletePosting(false);
     }
   }
 
   return (
     <>
-      <div style={{ marginTop: 12, display: "flex", gap: 16, flexWrap: "wrap" }}>
-        <div style={{ ...cardStyle, flex: "1 1 360px", minWidth: 360 }}>
-          <div style={{ fontWeight: 900, color: "#e5e7eb", marginBottom: 10 }}>
-            Add to Desk Feed
-          </div>
-
-          <form onSubmit={onSubmit} style={{ display: "grid", gap: 12 }}>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 140px", gap: 10 }}>
-              <div>
-                <div style={labelStyle}>Currency Pair</div>
-                <select
-                  style={selectStyle}
-                  value={form.currency_pair}
-                  onChange={(e) => setForm({ ...form, currency_pair: e.target.value })}
-                >
-                  {CURRENCY_PAIRS.map((p) => (
-                    <option key={p} value={p} style={optionStyle}>
-                      {p}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <div style={labelStyle}>Side</div>
-                <select
-                  style={selectStyle}
-                  value={form.side}
-                  onChange={(e) => setForm({ ...form, side: e.target.value })}
-                >
-                  <option value="SELL" style={optionStyle}>
-                    SELL
-                  </option>
-                  <option value="BUY" style={optionStyle}>
-                    BUY
-                  </option>
-                </select>
-              </div>
-            </div>
-
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, alignItems: "end" }}>
-              <div>
-                <div style={labelStyle}>Amount (FCY)</div>
-                <input
-                  style={{ ...inputStyle, ...monoStyle }}
-                  placeholder="e.g. 250000"
-                  value={form.amount_fcy}
-                  onChange={(e) => setForm({ ...form, amount_fcy: e.target.value })}
-                  inputMode="decimal"
-                />
-              </div>
-
-              <div>
-                <div style={labelStyle}>
-                  Quoted Rate {isNegotiating ? "(optional)" : "(required)"}
-                </div>
-                <input
-                  style={{ ...inputStyle, ...monoStyle }}
-                  placeholder={isNegotiating ? "optional while negotiating" : "e.g. 3.4230"}
-                  value={form.quoted_rate}
-                  onChange={(e) => setForm({ ...form, quoted_rate: e.target.value })}
-                  inputMode="decimal"
-                />
-              </div>
-            </div>
-
+      <div style={pageWrapStyle}>
+        <div style={panelStyle}>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              gap: 12,
+              alignItems: "center",
+              marginBottom: 10,
+              flexWrap: "wrap",
+            }}
+          >
             <div>
-              <div style={labelStyle}>Bank</div>
-              <select
-                style={selectStyle}
-                value={form.bank_name}
-                onChange={(e) => setForm({ ...form, bank_name: e.target.value })}
-              >
-                <option value="" style={optionStyle}>
-                  Select bank
-                </option>
-                {BANKS.map((b) => (
-                  <option key={b} value={b} style={optionStyle}>
-                    {b}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <div style={labelStyle}>Analyst</div>
-              <select
-                style={selectStyle}
-                value={form.analyst_name}
-                onChange={(e) => setForm({ ...form, analyst_name: e.target.value })}
-              >
-                <option value="" style={optionStyle}>
-                  Select analyst
-                </option>
-                {ANALYSTS.map((a) => (
-                  <option key={a} value={a} style={optionStyle}>
-                    {a}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <div style={labelStyle}>Status</div>
-              <select
-                style={selectStyle}
-                value={form.status}
-                onChange={(e) => setForm({ ...form, status: e.target.value })}
-              >
-                {STATUSES.map((s) => (
-                  <option key={s} value={s} style={optionStyle}>
-                    {s}
-                  </option>
-                ))}
-              </select>
+              <div style={{ fontWeight: 900, color: "#e5e7eb", fontSize: 16 }}>
+                Central Desk View
+              </div>
+              <div style={{ color: "rgba(229,231,235,0.7)", fontSize: 12, marginTop: 4 }}>
+                Auto-refresh: 10s • Rows: {filteredItems.length}
+              </div>
             </div>
 
             <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-              <button type="submit" style={btnStyle(true)} disabled={!canSubmit || posting}>
-                {posting ? "Saving..." : "Save Ticket"}
+              <button type="button" style={btnStyle(true)} onClick={openCreateModal}>
+                + Add Desk Ticket
               </button>
 
-              <button type="button" style={btnStyle(false)} onClick={refresh} disabled={loading}>
+              <button
+                type="button"
+                style={btnStyle(false)}
+                onClick={refresh}
+                disabled={loading}
+              >
                 {loading ? "Refreshing..." : "Refresh"}
               </button>
-
-              <div style={{ marginLeft: "auto", fontSize: 12, color: "rgba(229,231,235,0.65)" }}>
-                {loading ? "Syncing..." : "Live"}
-              </div>
-            </div>
-
-            {error && <div style={{ color: "#f97373", fontSize: 13 }}>{error}</div>}
-
-            {!error && !canSubmit && (
-              <div style={{ color: "rgba(229,231,235,0.55)", fontSize: 12 }}>
-                {isConfirmed
-                  ? "Quoted rate is required for confirmed deals."
-                  : "Quoted rate can stay empty for negotiating deals."}
-              </div>
-            )}
-          </form>
-        </div>
-
-        <div style={{ ...tableWrapStyle, flex: "2 1 780px", minWidth: 780 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
-            <div style={{ fontWeight: 900, color: "#e5e7eb" }}>Central Desk View</div>
-            <div style={{ color: "rgba(229,231,235,0.7)", fontSize: 12 }}>
-              Auto-refresh: 10s • Rows: {filteredItems.length}
             </div>
           </div>
 
           <div style={filterBarStyle}>
             <input
               style={inputStyle}
-              placeholder="Search side / pair / bank / analyst / status..."
+              placeholder="Search pair / bank / analyst / side / status..."
               value={filters.q}
               onChange={(e) => setFilters((f) => ({ ...f, q: e.target.value }))}
             />
@@ -671,101 +1045,158 @@ export default function NegotiationFeedPanel() {
             </button>
           </div>
 
-          <table style={tableStyle}>
-            <thead>
-              <tr style={{ textAlign: "left" }}>
-                {[
-                  "timestamp_utc",
-                  "currency_pair",
-                  "side",
-                  "amount_fcy",
-                  "bank_name",
-                  "quoted_rate",
-                  "analyst_name",
-                  "status",
-                  "action",
-                ].map((h) => (
-                  <th key={h} style={thStyle}>
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
+          {error && (
+            <div style={{ color: "#f97373", fontSize: 13, marginBottom: 10 }}>{error}</div>
+          )}
 
-            <tbody>
-              {filteredItems.map((r, idx) => {
-                const zebra = idx % 2 === 0 ? "rgba(255,255,255,0.02)" : "transparent";
-                const rowStatus = String(r.status || "").toUpperCase();
-                const canConfirmRow = rowStatus === "NEGOTIATING";
+          <div style={tableWrapStyle}>
+            <table style={tableStyle}>
+              <thead>
+                <tr style={{ textAlign: "left" }}>
+                  {[
+                    "timestamp_utc",
+                    "currency_pair",
+                    "side",
+                    "amount_fcy",
+                    "bank_name",
+                    "quoted_rate",
+                    "analyst_name",
+                    "status",
+                    "action",
+                  ].map((h) => (
+                    <th key={h} style={thStyle}>
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
 
-                return (
-                  <tr
-                    key={r.negotiation_id || `${r.timestamp_utc}-${idx}`}
-                    style={{ background: zebra, transition: "background 120ms ease" }}
-                    onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.05)")}
-                    onMouseLeave={(e) => (e.currentTarget.style.background = zebra)}
-                  >
-                    <td style={{ ...tdStyle, color: "rgba(229,231,235,0.80)" }}>{r.timestamp_utc}</td>
+              <tbody>
+                {filteredItems.map((r, idx) => {
+                  const zebra = idx % 2 === 0 ? "rgba(255,255,255,0.02)" : "transparent";
+                  const rowStatus = String(r.status || "").toUpperCase();
+                  const canConfirm = rowStatus === "NEGOTIATING";
 
-                    <td style={{ ...tdStyle, fontWeight: 900 }}>{r.currency_pair}</td>
+                  return (
+                    <tr
+                      key={r.negotiation_id || `${r.timestamp_utc}-${idx}`}
+                      style={{ background: zebra, transition: "background 120ms ease" }}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.05)")}
+                      onMouseLeave={(e) => (e.currentTarget.style.background = zebra)}
+                    >
+                      <td style={{ ...tdStyle, color: "rgba(229,231,235,0.80)" }}>
+                        {r.timestamp_utc}
+                      </td>
 
-                    <td style={{ ...tdStyle, fontWeight: 900 }}>{String(r.side || "").toUpperCase()}</td>
+                      <td style={tdStyle}>
+                        <span style={badgeStyle(r.currency_pair)}>{r.currency_pair}</span>
+                      </td>
 
-                    <td style={{ ...tdStyle, textAlign: "right", ...monoStyle }}>
-                      {Number(r.amount_fcy || 0).toLocaleString()}
-                    </td>
+                      <td style={{ ...tdStyle, fontWeight: 900 }}>
+                        {String(r.side || "").toUpperCase()}
+                      </td>
 
-                    <td style={tdStyle}>{r.bank_name || "—"}</td>
+                      <td style={{ ...tdStyle, textAlign: "right", ...monoStyle }}>
+                        {r.amount_fcy == null ? "—" : Number(r.amount_fcy).toLocaleString()}
+                      </td>
 
-                    <td style={{ ...tdStyle, textAlign: "right", ...monoStyle }}>
-                      {r.quoted_rate == null || r.quoted_rate === ""
-                        ? "—"
-                        : Number(r.quoted_rate).toFixed(4)}
-                    </td>
+                      <td style={tdStyle}>{r.bank_name || "—"}</td>
 
-                    <td style={tdStyle}>{r.analyst_name}</td>
+                      <td style={{ ...tdStyle, textAlign: "right", ...monoStyle }}>
+                        {r.quoted_rate == null || r.quoted_rate === ""
+                          ? "—"
+                          : Number(r.quoted_rate).toFixed(4)}
+                      </td>
 
-                    <td style={tdStyle}>{statusPill(r.status)}</td>
+                      <td style={tdStyle}>{r.analyst_name}</td>
 
-                    <td style={tdStyle}>
-                      {canConfirmRow ? (
-                        <button
-                          type="button"
-                          style={btnSmallStyle(true)}
-                          onClick={() => openConfirmModal(r)}
-                        >
-                          Confirm
-                        </button>
-                      ) : (
-                        <span style={{ color: "rgba(229,231,235,0.45)" }}>—</span>
-                      )}
+                      <td style={tdStyle}>
+                        <span style={statusPillStyle(r.status)}>
+                          {String(r.status || "").toUpperCase()}
+                        </span>
+                      </td>
+
+                      <td style={tdStyle}>
+                        <div style={{ display: "flex", gap: 8 }}>
+                          {canConfirm ? (
+                            <button
+                              type="button"
+                              style={smallBtnStyle("confirm")}
+                              onClick={() => openConfirmModal(r)}
+                            >
+                              Confirm
+                            </button>
+                          ) : (
+                            <span style={{ color: "rgba(229,231,235,0.35)", fontSize: 12, padding: "6px 4px" }}>
+                              —
+                            </span>
+                          )}
+
+                          <button
+                            type="button"
+                            style={smallBtnStyle("delete")}
+                            onClick={() => openDeleteModal(r)}
+                          >
+                            Del
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+
+                {!filteredItems.length && !loading && (
+                  <tr>
+                    <td colSpan={9} style={{ padding: 12, color: "rgba(229,231,235,0.7)" }}>
+                      No desk feed entries found.
                     </td>
                   </tr>
-                );
-              })}
-
-              {!filteredItems.length && !loading && (
-                <tr>
-                  <td colSpan={9} style={{ padding: 12, color: "rgba(229,231,235,0.7)" }}>
-                    No feed entries found.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
 
+      <CreateDeskFeedModal
+        open={isAddModalOpen}
+        onClose={() => {
+          if (!createPosting) {
+            setIsAddModalOpen(false);
+          }
+        }}
+        onSubmit={handleCreateSubmit}
+        posting={createPosting}
+        error={error}
+        form={createForm}
+        setForm={setCreateForm}
+      />
+
       <ConfirmNegotiationModal
-        open={confirmModalOpen}
+        open={isConfirmModalOpen}
         item={selectedItem}
-        busy={confirming}
-        bankName={confirmBankName}
-        setBankName={setConfirmBankName}
-        quotedRate={confirmQuotedRate}
-        setQuotedRate={setConfirmQuotedRate}
-        onClose={closeConfirmModal}
-        onConfirm={handleConfirmNegotiation}
+        posting={confirmPosting}
+        error={error}
+        form={confirmForm}
+        setForm={setConfirmForm}
+        onClose={() => {
+          if (!confirmPosting) {
+            setIsConfirmModalOpen(false);
+          }
+        }}
+        onSubmit={handleConfirmSubmit}
+      />
+
+      <DeleteConfirmModal
+        open={isDeleteModalOpen}
+        item={selectedItem}
+        busy={deletePosting}
+        onClose={() => {
+          if (!deletePosting) {
+            setIsDeleteModalOpen(false);
+          }
+        }}
+        onConfirm={handleDeleteConfirm}
       />
     </>
   );

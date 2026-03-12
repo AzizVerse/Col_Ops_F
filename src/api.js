@@ -1,6 +1,6 @@
 // src/api.js:
-const API_BASE = "https://col-ops-b-1.onrender.com";
-//const API_BASE = "http://localhost:8000";
+//const API_BASE = "https://col-ops-b-1.onrender.com";
+const API_BASE = "http://localhost:8000";
 let SESSION_ID = null;
 function getSessionId() {
   if (SESSION_ID) return SESSION_ID;
@@ -455,6 +455,36 @@ export async function confirmMarketQuote(quoteId, payload) {
   if (!resp.ok) throw new Error(await readError(resp, "confirmMarketQuote failed"));
   return resp.json();
 }
+
+export async function updateMarketQuote(quoteId, payload) {
+  const resp = await authFetch(`${API_BASE}/api/market-quotes/${quoteId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!resp.ok) throw new Error(await readError(resp, "updateMarketQuote failed"));
+  return resp.json();
+}
+
+export async function deleteMarketQuote(quoteId) {
+  const resp = await authFetch(`${API_BASE}/api/market-quotes/${quoteId}`, {
+    method: "DELETE",
+  });
+  if (!resp.ok) throw new Error(await readError(resp, "deleteMarketQuote failed"));
+  return resp.json();
+}
+
+export async function deleteNegotiationFeedEntry(negotiationId) {
+  const resp = await authFetch(`${API_BASE}/api/negotiation-feed/${negotiationId}`, {
+    method: "DELETE",
+  });
+  if (!resp.ok) throw new Error(await readError(resp, "deleteNegotiationFeedEntry failed"));
+  return resp.json();
+}
+
+
+/** negomail/ */
+
 export async function confirmNegotiationFeedEntry(negotiationId, payload) {
   const resp = await authFetch(`${API_BASE}/api/negotiation-feed/${negotiationId}/confirm`, {
     method: "PATCH",

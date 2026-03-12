@@ -237,7 +237,7 @@ export default function FxLiveRatesSearchPanel() {
   return (
     <div style={panelStyle}>
       <div style={cardStyle}>
-        <div style={titleStyle}>Reuters Live Rates Search</div>
+        <div style={titleStyle}>Reuters Hisotrical Rates Search</div>
         <div style={subTitleStyle}>
           Select date, time and number of rows to display.
         </div>
