@@ -10,12 +10,50 @@ import {
  * Helpers
  * ====================== */
 
+function todayISO() {
+  const d = new Date();
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+}
+
 function parseDecimal(value) {
   if (value == null) return null;
   const s = String(value).trim().replace(",", ".");
   if (!s) return null;
   const n = Number(s);
   return Number.isFinite(n) ? n : null;
+}
+
+function formatTimestamp(value) {
+  if (!value) return "—";
+
+  const dt = new Date(value);
+  if (Number.isNaN(dt.getTime())) return String(value);
+
+  const dd = String(dt.getDate()).padStart(2, "0");
+  const mm = String(dt.getMonth() + 1).padStart(2, "0");
+  const yyyy = dt.getFullYear();
+  const hh = String(dt.getHours()).padStart(2, "0");
+  const mi = String(dt.getMinutes()).padStart(2, "0");
+  const ss = String(dt.getSeconds()).padStart(2, "0");
+
+  return `${dd}/${mm}/${yyyy} ${hh}:${mi}:${ss}`;
+}
+
+function extractRowDate(value) {
+  if (!value) return "";
+  const dt = new Date(value);
+  if (!Number.isNaN(dt.getTime())) {
+    const yyyy = dt.getFullYear();
+    const mm = String(dt.getMonth() + 1).padStart(2, "0");
+    const dd = String(dt.getDate()).padStart(2, "0");
+    return `${yyyy}-${mm}-${dd}`;
+  }
+
+  const s = String(value);
+  return s.length >= 10 ? s.slice(0, 10) : "";
 }
 
 function pairAccent(pair) {
@@ -95,6 +133,7 @@ const panelStyle = {
   padding: 14,
   width: "100%",
   maxWidth: "100%",
+  minWidth: 0,
   boxSizing: "border-box",
 };
 
@@ -117,6 +156,7 @@ const inputStyle = {
   fontSize: 14,
   outline: "none",
   boxSizing: "border-box",
+  minHeight: 42,
 };
 
 const selectStyle = {
@@ -140,6 +180,8 @@ const btnStyle = (primary = true) => ({
   fontSize: 13,
   cursor: "pointer",
   fontWeight: 800,
+  minHeight: 42,
+  whiteSpace: "nowrap",
 });
 
 const smallBtnStyle = (kind = "neutral") => {
@@ -168,6 +210,7 @@ const smallBtnStyle = (kind = "neutral") => {
     fontSize: 12,
     cursor: "pointer",
     fontWeight: 800,
+    whiteSpace: "nowrap",
   };
 };
 
@@ -177,12 +220,14 @@ const tableWrapStyle = {
   overflowX: "auto",
   position: "relative",
   width: "100%",
+  maxWidth: "100%",
+  minWidth: 0,
+  WebkitOverflowScrolling: "touch",
 };
 
 const tableStyle = {
   width: "100%",
-  minWidth: 1220,
-  maxWidth: "100%",
+  minWidth: 980,
   borderCollapse: "separate",
   borderSpacing: 0,
   fontSize: 13,
@@ -218,7 +263,7 @@ const monoStyle = {
 
 const filterBarStyle = {
   display: "grid",
-  gridTemplateColumns: "minmax(220px,1.4fr) minmax(140px,1fr) minmax(140px,1fr) auto auto",
+  gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
   gap: 10,
   marginBottom: 12,
   alignItems: "center",
@@ -238,6 +283,8 @@ const overlayStyle = {
 const modalStyle = {
   width: "100%",
   maxWidth: 720,
+  maxHeight: "90vh",
+  overflowY: "auto",
   background: "#0b1220",
   border: "1px solid rgba(255,255,255,0.12)",
   borderRadius: 18,
@@ -248,6 +295,8 @@ const modalStyle = {
 const deleteModalStyle = {
   width: "100%",
   maxWidth: 460,
+  maxHeight: "90vh",
+  overflowY: "auto",
   background: "#0b1220",
   border: "1px solid rgba(255,255,255,0.12)",
   borderRadius: 18,
@@ -373,8 +422,16 @@ function QuoteFormModal({
   return (
     <div style={overlayStyle} onClick={onClose}>
       <div style={modalStyle} onClick={(e) => e.stopPropagation()}>
-        <div style={{ display: "flex", alignItems: "center", marginBottom: 14 }}>
-          <div>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "flex-start",
+            marginBottom: 14,
+            gap: 12,
+            flexWrap: "wrap",
+          }}
+        >
+          <div style={{ minWidth: 0 }}>
             <div style={{ fontWeight: 900, fontSize: 18, color: "#e5e7eb" }}>
               {title}
             </div>
@@ -394,7 +451,13 @@ function QuoteFormModal({
         </div>
 
         <form onSubmit={onSubmit} style={{ display: "grid", gap: 12 }}>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+              gap: 12,
+            }}
+          >
             <div>
               <div style={labelStyle}>Currency Pair</div>
               <select
@@ -429,7 +492,13 @@ function QuoteFormModal({
             </div>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+              gap: 12,
+            }}
+          >
             <div>
               <div style={labelStyle}>Bid</div>
               <input
@@ -481,7 +550,15 @@ function QuoteFormModal({
             />
           </div>
 
-          <div style={{ display: "flex", gap: 10, alignItems: "center", marginTop: 4 }}>
+          <div
+            style={{
+              display: "flex",
+              gap: 10,
+              alignItems: "center",
+              marginTop: 4,
+              flexWrap: "wrap",
+            }}
+          >
             <button
               type="submit"
               style={{
@@ -538,7 +615,15 @@ function DeleteConfirmModal({
           <strong>Analyst:</strong> {item.analyst_name}
         </div>
 
-        <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 18 }}>
+        <div
+          style={{
+            display: "flex",
+            gap: 10,
+            justifyContent: "flex-end",
+            marginTop: 18,
+            flexWrap: "wrap",
+          }}
+        >
           <button type="button" style={btnStyle(false)} onClick={onClose} disabled={busy}>
             Cancel
           </button>
@@ -589,6 +674,7 @@ export default function MarketQuotesPanel() {
     q: "",
     currency_pair: "ALL",
     bank_name: "ALL",
+    date: todayISO(),
   });
 
   const filteredItems = useMemo(() => {
@@ -608,7 +694,10 @@ export default function MarketQuotesPanel() {
       const matchesBank =
         filters.bank_name === "ALL" || r.bank_name === filters.bank_name;
 
-      return matchesText && matchesPair && matchesBank;
+      const matchesDate =
+        !filters.date || extractRowDate(r.timestamp_utc) === filters.date;
+
+      return matchesText && matchesPair && matchesBank && matchesDate;
     });
   }, [items, filters]);
 
@@ -809,7 +898,15 @@ export default function MarketQuotesPanel() {
               </div>
             </div>
 
-            <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+            <div
+              style={{
+                display: "flex",
+                gap: 10,
+                alignItems: "center",
+                flexWrap: "wrap",
+                minWidth: 0,
+              }}
+            >
               <button type="button" style={btnStyle(true)} onClick={openCreateModal}>
                 + Add Market Quote
               </button>
@@ -863,6 +960,13 @@ export default function MarketQuotesPanel() {
               ))}
             </select>
 
+            <input
+              type="date"
+              style={inputStyle}
+              value={filters.date}
+              onChange={(e) => setFilters((f) => ({ ...f, date: e.target.value }))}
+            />
+
             <button
               type="button"
               style={btnStyle(false)}
@@ -871,13 +975,21 @@ export default function MarketQuotesPanel() {
                   q: "",
                   currency_pair: "ALL",
                   bank_name: "ALL",
+                  date: todayISO(),
                 })
               }
             >
               Reset
             </button>
 
-            <div style={{ ...subtleTextStyle, display: "flex", alignItems: "center" }}>
+            <div
+              style={{
+                ...subtleTextStyle,
+                display: "flex",
+                alignItems: "center",
+                minHeight: 42,
+              }}
+            >
               Best bid = max • Best ask = min
             </div>
           </div>
@@ -932,7 +1044,7 @@ export default function MarketQuotesPanel() {
                       onMouseLeave={(e) => (e.currentTarget.style.background = zebra)}
                     >
                       <td style={{ ...tdStyle, color: "rgba(229,231,235,0.80)" }}>
-                        {r.timestamp_utc}
+                        {formatTimestamp(r.timestamp_utc)}
                       </td>
 
                       <td style={tdStyle}>
@@ -974,16 +1086,17 @@ export default function MarketQuotesPanel() {
                       <td
                         style={{
                           ...tdStyle,
-                          maxWidth: 240,
+                          maxWidth: 220,
                           overflow: "hidden",
                           textOverflow: "ellipsis",
                         }}
+                        title={r.note || ""}
                       >
                         {r.note || ""}
                       </td>
 
                       <td style={tdStyle}>
-                        <div style={{ display: "flex", gap: 8 }}>
+                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                           <button
                             type="button"
                             style={smallBtnStyle("edit")}

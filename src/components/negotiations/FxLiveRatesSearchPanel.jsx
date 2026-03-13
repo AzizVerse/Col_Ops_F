@@ -49,7 +49,6 @@ const inputStyle = {
   minHeight: 44,
   boxSizing: "border-box",
   colorScheme: "dark",
-  cursor: "pointer",
 };
 
 const buttonStyle = {
@@ -63,6 +62,7 @@ const buttonStyle = {
   cursor: "pointer",
   minHeight: 44,
   boxShadow: "0 8px 20px rgba(37,99,235,0.28)",
+  width: "100%",
 };
 
 const buttonDisabledStyle = {
@@ -198,8 +198,6 @@ export default function FxLiveRatesSearchPanel() {
     } finally {
       setLoading(false);
     }
-
-    
   }
 
   const normalizedRows = useMemo(() => {
@@ -247,12 +245,12 @@ export default function FxLiveRatesSearchPanel() {
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "1fr 1fr 0.85fr auto",
+            gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
             gap: 14,
             alignItems: "end",
           }}
         >
-          <div>
+          <div style={{ minWidth: 0 }}>
             <div style={labelStyle}>Date</div>
             <input
               type="date"
@@ -265,7 +263,7 @@ export default function FxLiveRatesSearchPanel() {
             />
           </div>
 
-          <div>
+          <div style={{ minWidth: 0 }}>
             <div style={labelStyle}>Time</div>
             <input
               type="time"
@@ -279,13 +277,13 @@ export default function FxLiveRatesSearchPanel() {
             />
           </div>
 
-          <div>
+          <div style={{ minWidth: 0 }}>
             <div style={labelStyle}>Number of lines</div>
             <input
               type="number"
               min="1"
               max="1000"
-              style={{ ...inputStyle, ...monoStyle, cursor: "text" }}
+              style={{ ...inputStyle, ...monoStyle }}
               value={limit}
               onChange={(e) => setLimit(e.target.value)}
               onKeyDown={(e) => {
@@ -294,13 +292,15 @@ export default function FxLiveRatesSearchPanel() {
             />
           </div>
 
-          <button
-            style={canSearch && !loading ? buttonStyle : buttonDisabledStyle}
-            onClick={onSearch}
-            disabled={!canSearch || loading}
-          >
-            {loading ? "Searching..." : "Search"}
-          </button>
+          <div style={{ minWidth: 0 }}>
+            <button
+              style={canSearch && !loading ? buttonStyle : buttonDisabledStyle}
+              onClick={onSearch}
+              disabled={!canSearch || loading}
+            >
+              {loading ? "Searching..." : "Search"}
+            </button>
+          </div>
         </div>
 
         {error ? (
@@ -313,6 +313,7 @@ export default function FxLiveRatesSearchPanel() {
               border: "1px solid rgba(239,68,68,0.22)",
               color: "#fca5a5",
               fontSize: 13,
+              wordBreak: "break-word",
             }}
           >
             {error}
@@ -320,13 +321,15 @@ export default function FxLiveRatesSearchPanel() {
         ) : null}
       </div>
 
-      <div style={{ ...cardStyle, padding: 0 }}>
+      <div style={{ ...cardStyle, padding: 0, overflow: "hidden" }}>
         <div
           style={{
             padding: 16,
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
+            gap: 12,
+            flexWrap: "wrap",
             borderBottom: "1px solid rgba(255,255,255,0.08)",
           }}
         >
@@ -347,7 +350,7 @@ export default function FxLiveRatesSearchPanel() {
             WebkitOverflowScrolling: "touch",
           }}
         >
-          <div style={{ minWidth: "1400px" }}>
+          <div style={{ minWidth: 900 }}>
             <table
               style={{
                 width: "100%",
@@ -392,10 +395,16 @@ export default function FxLiveRatesSearchPanel() {
                       : "transparent";
 
                   return (
-                    <tr key={`${row.timestamp || "row"}-${rowIndex}`} style={{ background: zebra }}>
+                    <tr
+                      key={`${row.timestamp || "row"}-${rowIndex}`}
+                      style={{ background: zebra }}
+                    >
                       {columns.map((column, colIndex) => {
                         const rawValue = row?.[column];
-                        const value = column === "timestamp" ? formatTimestamp(rawValue) : rawValue;
+                        const value =
+                          column === "timestamp"
+                            ? formatTimestamp(rawValue)
+                            : rawValue;
                         const isNumber = typeof rawValue === "number";
                         const group = getColumnGroup(column);
                         const isFirst = colIndex === 0;
