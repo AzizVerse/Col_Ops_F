@@ -26,6 +26,65 @@ function parseAmount(value) {
   return Number.isFinite(n) ? n : null;
 }
 
+function getAmountCurrency(pair) {
+  const p = String(pair || "").trim().toUpperCase();
+  if (!p.includes("/")) return "FCY";
+  return p.split("/")[0];
+}
+
+function sanitizeAmountInput(value) {
+  if (value == null) return "";
+
+  let s = String(value);
+
+  // keep only digits, comma, dot
+  s = s.replace(/[^\d.,]/g, "");
+
+  // if both comma and dot exist, assume comma is thousands separator
+  if (s.includes(".") && s.includes(",")) {
+    s = s.replace(/,/g, "");
+  } else {
+    // otherwise convert comma to dot
+    s = s.replace(/,/g, ".");
+  }
+
+  // keep only first decimal dot
+  const firstDot = s.indexOf(".");
+  if (firstDot !== -1) {
+    s = s.slice(0, firstDot + 1) + s.slice(firstDot + 1).replace(/\./g, "");
+  }
+
+  return s;
+}
+
+function formatAmountDisplay(value) {
+  const n = parseAmount(value);
+  if (n == null) return "";
+  return n.toLocaleString(undefined, {
+    maximumFractionDigits: 2,
+  });
+}
+
+function sanitizeRateInput(value) {
+  if (value == null) return "";
+
+  let s = String(value);
+
+  // keep only digits, comma, dot
+  s = s.replace(/[^\d.,]/g, "");
+
+  // convert comma to dot
+  s = s.replace(/,/g, ".");
+
+  // keep only first decimal dot
+  const firstDot = s.indexOf(".");
+  if (firstDot !== -1) {
+    s = s.slice(0, firstDot + 1) + s.slice(firstDot + 1).replace(/\./g, "");
+  }
+
+  return s;
+}
+
 function pairAccent(pair) {
   const p = String(pair || "").toUpperCase();
 
@@ -411,10 +470,17 @@ function CreateDeskFeedModal({
   form,
   setForm,
 }) {
+  const [amountFocused, setAmountFocused] = useState(false);
+
   if (!open) return null;
 
   const canSubmit = isCreateFormValid(form);
   const validationReason = buildCreateValidationReason(form);
+  const amountCurrency = getAmountCurrency(form.currency_pair);
+
+  const displayedAmount = amountFocused
+    ? String(form.amount_fcy || "")
+    : formatAmountDisplay(form.amount_fcy);
 
   return (
     <div style={overlayStyle} onClick={onClose}>
@@ -474,12 +540,19 @@ function CreateDeskFeedModal({
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
             <div>
-              <div style={labelStyle}>Amount (FCY)</div>
+              <div style={labelStyle}>Amount ({amountCurrency})</div>
               <input
                 style={{ ...inputStyle, ...monoStyle }}
-                placeholder="e.g. 250000"
-                value={form.amount_fcy}
-                onChange={(e) => setForm({ ...form, amount_fcy: e.target.value })}
+                placeholder={`e.g. 250000 ${amountCurrency}`}
+                value={displayedAmount}
+                onFocus={() => setAmountFocused(true)}
+                onBlur={() => setAmountFocused(false)}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    amount_fcy: sanitizeAmountInput(e.target.value),
+                  })
+                }
                 inputMode="decimal"
               />
             </div>
@@ -490,7 +563,7 @@ function CreateDeskFeedModal({
                 style={{ ...inputStyle, ...monoStyle }}
                 placeholder={form.status === "NEGOTIATING" ? "optional while negotiating" : "e.g. 3.4230"}
                 value={form.quoted_rate}
-                onChange={(e) => setForm({ ...form, quoted_rate: e.target.value })}
+                onChange={(e) => setForm({ ...form, quoted_rate: sanitizeRateInput(e.target.value) })}
                 inputMode="decimal"
               />
             </div>
@@ -563,7 +636,7 @@ function CreateDeskFeedModal({
             </button>
 
             <div style={{ ...subtleTextStyle, marginLeft: "auto" }}>
-              Comma or dot decimal accepted
+              Smart numeric input enabled
             </div>
           </div>
 
@@ -632,7 +705,7 @@ function ConfirmNegotiationModal({
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
             <div>
-              <div style={labelStyle}>Amount (FCY)</div>
+              <div style={labelStyle}>Amount ({getAmountCurrency(item.currency_pair)})</div>
               <input
                 style={{ ...inputStyle, ...monoStyle }}
                 value={item.amount_fcy == null ? "" : Number(item.amount_fcy).toLocaleString()}
@@ -665,7 +738,7 @@ function ConfirmNegotiationModal({
               style={{ ...inputStyle, ...monoStyle }}
               placeholder="e.g. 3.4230"
               value={form.quoted_rate}
-              onChange={(e) => setForm({ ...form, quoted_rate: e.target.value })}
+              onChange={(e) => setForm({ ...form, quoted_rate: sanitizeRateInput(e.target.value) })}
               inputMode="decimal"
             />
           </div>
