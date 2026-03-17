@@ -522,3 +522,10 @@ export async function matchByAmount({ amount_tnd, date, note }) {
   return resp.json();
 }
 
+export async function sendMarketQuotesSummary() {
+  const resp = await authFetch(`${API_BASE}/api/market-quotes/send-summary`, {
+    method: "POST",
+  });
+  if (!resp.ok) throw new Error(await readError(resp, "sendMarketQuotesSummary failed"));
+  return resp.json();
+}

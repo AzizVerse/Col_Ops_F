@@ -4,6 +4,7 @@ import {
   createMarketQuote,
   updateMarketQuote,
   deleteMarketQuote,
+  sendMarketQuotesSummary
 } from "../../api";
 
 /* ======================
@@ -660,7 +661,7 @@ export default function MarketQuotesPanel() {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
   const [selectedItem, setSelectedItem] = useState(null);
-
+  const [sendingSummary, setSendingSummary] = useState(false);
   const [form, setForm] = useState({
     currency_pair: "EUR/TND",
     bank_name: "",
@@ -729,6 +730,19 @@ export default function MarketQuotesPanel() {
 
     return map;
   }, [filteredItems]);
+
+  async function handleSendSummary() {
+  setSendingSummary(true);
+  setError("");
+
+  try {
+    await sendMarketQuotesSummary();
+  } catch (e) {
+    setError(String(e?.message || e));
+  } finally {
+    setSendingSummary(false);
+  }
+}
 
   async function refresh() {
     setLoading(true);
@@ -919,6 +933,15 @@ export default function MarketQuotesPanel() {
               >
                 {loading ? "Refreshing..." : "Refresh"}
               </button>
+
+              <button
+  type="button"
+  style={btnStyle(false)}
+  onClick={handleSendSummary}
+  disabled={sendingSummary}
+>
+  {sendingSummary ? "Sending..." : "Send Telegram Summary"}
+</button>
             </div>
           </div>
 
