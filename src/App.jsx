@@ -13,12 +13,13 @@ import { LoginPanel } from "./components/user/LoginPanel";
 import { useAuth } from "./components/auth/AuthContext";
 
 import InvoiceReminders from "./components/InvoiceReminders.jsx";
-import BusinessCardUploader from "./components/BusinessCardUploader.jsx";
 import DailyDigestPanel from "./components/digest/DailyDigestPanel.jsx";
 import NegotiationsPanel from "./components/negotiations/NegotiationsPanel.jsx";
 import FxLiveRatesSearchPanel from "./components/negotiations/FxLiveRatesSearchPanel.jsx";
 import DeskPanel from "./components/desk/DeskPanel.jsx";
 import { MatchByAmountCard } from "./components/pending/MatchByAmountCard.jsx";
+
+import BusinessCardUploader from "./components/businessCards/BusinessCardUploader.jsx"
 
 function App() {
   const { isAuthenticated, checkingAuth, logout } = useAuth();
