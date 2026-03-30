@@ -2,7 +2,7 @@ import React, { useMemo, useRef, useState, useCallback } from "react";
 import ReviewQueue from "./ReviewQueue";
 import SavedCardsTable from "./SavedCardsTable";
 
-const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:8000";
+import  API_BASE from '../../api';
 
 function formatAddedOn(value) {
   if (!value) return "";
