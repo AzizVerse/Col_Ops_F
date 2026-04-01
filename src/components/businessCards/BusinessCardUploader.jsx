@@ -1,6 +1,13 @@
-import React, { useMemo, useRef, useState, useCallback } from "react";
+import React, {
+  useMemo,
+  useRef,
+  useState,
+  useCallback,
+  useEffect,
+} from "react";
 import ReviewQueue from "./ReviewQueue";
 import SavedCardsTable from "./SavedCardsTable";
+import CameraCapturePanel from "./CameraCapturePanel";
 
 import { API_BASE } from "../../api";
 
@@ -79,9 +86,50 @@ function StepChip({ label, active }) {
   );
 }
 
+function InputModeChip({ label, active, onClick }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        ...styles.modeChip,
+        ...(active ? styles.modeChipActive : {}),
+      }}
+    >
+      {label}
+    </button>
+  );
+}
+
+function mapResultsToEditableRows(results) {
+  return (results || []).map((r, idx) => ({
+    id: `${Date.now()}-${r.source_file || "row"}-${idx}-${Math.random()
+      .toString(36)
+      .slice(2, 8)}`,
+    source_file: r.source_file || "",
+    company: r.company || "",
+    full_name: r.full_name || "",
+    job_title: r.job_title || "",
+    email: r.email || "",
+    email2: r.email2 || "",
+    phone: r.phone || "",
+    phone2: r.phone2 || "",
+    website: r.website || "",
+    address: r.address || "",
+    status: r.status || "needs_review",
+    ocr_text: r.ocr_text || "",
+    error: r.error || "",
+    ok: r.ok !== false,
+    selected: r.ok !== false,
+    ai_used: !!r.ai_used,
+    ai_error: r.ai_error || "",
+  }));
+}
+
 export default function BusinessCardUploader() {
   const inputRef = useRef(null);
 
+  const [inputMode, setInputMode] = useState("files");
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [scanResponse, setScanResponse] = useState(null);
   const [editableRows, setEditableRows] = useState([]);
@@ -92,6 +140,7 @@ export default function BusinessCardUploader() {
   const [isLoadingSaved, setIsLoadingSaved] = useState(false);
   const [error, setError] = useState("");
   const [scanMode, setScanMode] = useState("normal");
+  const [cameraReadyForNext, setCameraReadyForNext] = useState(true);
 
   const onPickFiles = (files) => {
     const arr = Array.from(files || []);
@@ -126,7 +175,16 @@ export default function BusinessCardUploader() {
     setEditableRows([]);
     setSaveResponse(null);
     setError("");
+    setCameraReadyForNext(true);
     if (inputRef.current) inputRef.current.value = "";
+  };
+
+  const appendScanResults = (data, mode) => {
+    setScanResponse(data);
+    setScanMode(mode);
+
+    const incoming = mapResultsToEditableRows(data.results || []);
+    setEditableRows((prev) => [...prev, ...incoming]);
   };
 
   const onScanClick = async (mode = "normal") => {
@@ -140,37 +198,33 @@ export default function BusinessCardUploader() {
     try {
       const endpoint = mode === "ai" ? "/api/cards/scan-ai" : "/api/cards/scan";
       const data = await postFiles(endpoint, selectedFiles);
-      setScanResponse(data);
 
-      setEditableRows((prev) => {
-        const incoming = (data.results || []).map((r, idx) => ({
-          id: `${Date.now()}-${r.source_file || "row"}-${idx}`,
-          source_file: r.source_file || "",
-          company: r.company || "",
-          full_name: r.full_name || "",
-          job_title: r.job_title || "",
-          email: r.email || "",
-          email2: r.email2 || "",
-          phone: r.phone || "",
-          phone2: r.phone2 || "",
-          website: r.website || "",
-          address: r.address || "",
-          status: r.status || "needs_review",
-          ocr_text: r.ocr_text || "",
-          error: r.error || "",
-          ok: r.ok !== false,
-          selected: r.ok !== false,
-          ai_used: !!r.ai_used,
-          ai_error: r.ai_error || "",
-        }));
-
-        return [...prev, ...incoming];
-      });
+      appendScanResults(data, mode);
 
       setSelectedFiles([]);
       if (inputRef.current) inputRef.current.value = "";
     } catch (e) {
       setError(e.message || "Scan failed");
+    } finally {
+      setIsScanning(false);
+    }
+  };
+
+  const onCameraCapture = async (file, mode = "ai") => {
+    setIsScanning(true);
+    setError("");
+    setSaveResponse(null);
+    setScanMode(mode);
+    setCameraReadyForNext(false);
+
+    try {
+      const endpoint = mode === "ai" ? "/api/cards/scan-ai" : "/api/cards/scan";
+      const data = await postFiles(endpoint, [file]);
+      appendScanResults(data, mode);
+    } catch (e) {
+      setError(e.message || "Camera scan failed");
+      setCameraReadyForNext(true);
+      throw e;
     } finally {
       setIsScanning(false);
     }
@@ -229,12 +283,12 @@ export default function BusinessCardUploader() {
         const seen = new Set();
 
         return merged.filter((row) => {
-            const key = `${row.Card_id || ""}-${row.email || ""}-${row.phone || ""}`;
-            if (seen.has(key)) return false;
-            seen.add(key);
-            return true;
+          const key = `${row.Card_id || ""}-${row.email || ""}-${row.phone || ""}`;
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
         });
-        });
+      });
     } catch (e) {
       setError(e.message || "Save failed");
     } finally {
@@ -257,6 +311,20 @@ export default function BusinessCardUploader() {
       prev.map((row) => (row.error ? row : { ...row, selected: checked }))
     );
   };
+
+  const unlockCameraForNext = () => {
+    setCameraReadyForNext(true);
+    setSaveResponse(null);
+    setError("");
+  };
+
+  useEffect(() => {
+    if (inputMode !== "camera") return;
+
+    if (!isScanning && !isSaving && editableRows.length === 0) {
+      setCameraReadyForNext(true);
+    }
+  }, [inputMode, isScanning, isSaving, editableRows.length]);
 
   const scanSummary = useMemo(() => {
     if (!scanResponse) return null;
@@ -287,7 +355,9 @@ export default function BusinessCardUploader() {
             <div style={styles.kicker}>Client Operations</div>
             <h2 style={styles.h2}>Business Cards OCR Review Console</h2>
             <p style={styles.p}>
-              Scan cards in batches, review extracted fields, and save only validated rows.
+              Scan cards from files or directly from the webcam. In smart camera mode,
+              the app waits until the card is stable, captures it automatically, and
+              shows the extracted result below for review.
             </p>
           </div>
 
@@ -299,94 +369,152 @@ export default function BusinessCardUploader() {
           </div>
         </div>
 
-        <div
-          onDragOver={(e) => e.preventDefault()}
-          onDrop={onDrop}
-          style={styles.dropzone}
-        >
-          <div>
-            <div style={styles.dropTitle}>Drop images here</div>
-            <div style={styles.dropSub}>
-              or click “Choose files”. Supported: jpg, png, webp
-            </div>
-          </div>
-
-          <div style={styles.actions}>
-            <input
-              ref={inputRef}
-              type="file"
-              accept="image/*"
-              multiple
-              onChange={onFileChange}
-              style={{ display: "none" }}
-              id="card-files"
-            />
-
-            <label htmlFor="card-files" style={styles.btnSecondary}>
-              Choose files
-            </label>
-
-            <button
-              onClick={() => onScanClick("normal")}
-              disabled={isScanning || selectedFiles.length === 0}
-              style={{
-                ...styles.btnPrimary,
-                opacity: isScanning || selectedFiles.length === 0 ? 0.6 : 1,
-                cursor:
-                  isScanning || selectedFiles.length === 0
-                    ? "not-allowed"
-                    : "pointer",
-              }}
-            >
-              {isScanning && scanMode === "normal" ? "Scanning..." : "Scan cards"}
-            </button>
-
-            <button
-              onClick={() => onScanClick("ai")}
-              disabled={isScanning || selectedFiles.length === 0}
-              style={{
-                ...styles.btnAI,
-                opacity: isScanning || selectedFiles.length === 0 ? 0.6 : 1,
-                cursor:
-                  isScanning || selectedFiles.length === 0
-                    ? "not-allowed"
-                    : "pointer",
-              }}
-            >
-              {isScanning && scanMode === "ai" ? "Scanning with AI..." : "Scan with AI"}
-            </button>
-
-            <button
-              onClick={loadSavedRows}
-              disabled={isLoadingSaved}
-              style={{
-                ...styles.btnSecondary,
-                opacity: isLoadingSaved ? 0.6 : 1,
-                cursor: isLoadingSaved ? "not-allowed" : "pointer",
-              }}
-            >
-              {isLoadingSaved ? "Loading saved..." : "Load saved rows"}
-            </button>
-
-            <button
-              onClick={onClear}
-              disabled={isScanning || isSaving}
-              style={{
-                ...styles.btnGhost,
-                opacity: isScanning || isSaving ? 0.6 : 1,
-                cursor: isScanning || isSaving ? "not-allowed" : "pointer",
-              }}
-            >
-              Reset
-            </button>
-          </div>
+        <div style={styles.modeSelectorRow}>
+          <InputModeChip
+            label="Files"
+            active={inputMode === "files"}
+            onClick={() => setInputMode("files")}
+          />
+          <InputModeChip
+            label="Smart Camera"
+            active={inputMode === "camera"}
+            onClick={() => setInputMode("camera")}
+          />
         </div>
+
+        {inputMode === "files" ? (
+          <>
+            <div
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={onDrop}
+              style={styles.dropzone}
+            >
+              <div>
+                <div style={styles.dropTitle}>Drop images here</div>
+                <div style={styles.dropSub}>
+                  or click “Choose files”. Supported: jpg, png, webp
+                </div>
+              </div>
+
+              <div style={styles.actions}>
+                <input
+                  ref={inputRef}
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={onFileChange}
+                  style={{ display: "none" }}
+                  id="card-files"
+                />
+
+                <label htmlFor="card-files" style={styles.btnSecondary}>
+                  Choose files
+                </label>
+
+                <button
+                  onClick={() => onScanClick("normal")}
+                  disabled={isScanning || selectedFiles.length === 0}
+                  style={{
+                    ...styles.btnPrimary,
+                    opacity: isScanning || selectedFiles.length === 0 ? 0.6 : 1,
+                    cursor:
+                      isScanning || selectedFiles.length === 0
+                        ? "not-allowed"
+                        : "pointer",
+                  }}
+                >
+                  {isScanning && scanMode === "normal" ? "Scanning..." : "Scan cards"}
+                </button>
+
+                <button
+                  onClick={() => onScanClick("ai")}
+                  disabled={isScanning || selectedFiles.length === 0}
+                  style={{
+                    ...styles.btnAI,
+                    opacity: isScanning || selectedFiles.length === 0 ? 0.6 : 1,
+                    cursor:
+                      isScanning || selectedFiles.length === 0
+                        ? "not-allowed"
+                        : "pointer",
+                  }}
+                >
+                  {isScanning && scanMode === "ai"
+                    ? "Scanning with AI..."
+                    : "Scan with AI"}
+                </button>
+
+                <button
+                  onClick={loadSavedRows}
+                  disabled={isLoadingSaved}
+                  style={{
+                    ...styles.btnSecondary,
+                    opacity: isLoadingSaved ? 0.6 : 1,
+                    cursor: isLoadingSaved ? "not-allowed" : "pointer",
+                  }}
+                >
+                  {isLoadingSaved ? "Loading saved..." : "Load saved rows"}
+                </button>
+
+                <button
+                  onClick={onClear}
+                  disabled={isScanning || isSaving}
+                  style={{
+                    ...styles.btnGhost,
+                    opacity: isScanning || isSaving ? 0.6 : 1,
+                    cursor: isScanning || isSaving ? "not-allowed" : "pointer",
+                  }}
+                >
+                  Reset
+                </button>
+              </div>
+            </div>
+
+            {selectedFiles.length > 0 && (
+              <div style={styles.fileCard}>
+                <div style={styles.sectionTitle}>
+                  Selected file list ({selectedFiles.length})
+                </div>
+                <ul style={styles.fileList}>
+                  {selectedFiles.map((f) => (
+                    <li
+                      key={`${f.name}-${f.size}-${f.lastModified}`}
+                      style={styles.fileItem}
+                    >
+                      <span style={{ color: "#F8FAFC", fontWeight: 600 }}>{f.name}</span>
+                      <span style={{ color: "#94A3B8" }}>
+                        {" "}
+                        ({Math.round(f.size / 1024)} KB)
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </>
+        ) : (
+          <CameraCapturePanel
+            isBusy={isScanning || isSaving}
+            onCapture={onCameraCapture}
+            defaultMode="ai"
+            canAutoResume={cameraReadyForNext}
+          />
+        )}
 
         <div style={styles.toolbarRow}>
           <div style={styles.panel}>
-            <div style={styles.sectionTitle}>Selected files</div>
-            <div style={styles.bigMetric}>{selectedFiles.length}</div>
-            <div style={styles.muted}>ready for next scan</div>
+            <div style={styles.sectionTitle}>
+              {inputMode === "files" ? "Selected files" : "Camera mode"}
+            </div>
+            <div style={styles.bigMetric}>
+              {inputMode === "files" ? selectedFiles.length : "Smart"}
+            </div>
+            <div style={styles.muted}>
+              {inputMode === "files"
+                ? "ready for next scan"
+                : cameraReadyForNext
+                ? "watching for next card"
+                : "paused until review/save"}
+            </div>
           </div>
 
           <div style={styles.panel}>
@@ -404,30 +532,26 @@ export default function BusinessCardUploader() {
           <div style={styles.panelWide}>
             <div style={styles.sectionTitle}>Workflow</div>
             <div style={styles.muted}>
-              Choose files → Scan → Review queue → Save checked rows → Final saved rows appear in the single table below
+              {inputMode === "files"
+                ? "Choose files → Scan → Review queue → Save checked rows → Final saved rows appear in the single table below"
+                : "Open smart camera → Wait for stable card → Auto-capture → OCR result appears below → Review/correct → Save → Continue to next card"}
             </div>
           </div>
         </div>
 
-        {selectedFiles.length > 0 && (
-          <div style={styles.fileCard}>
-            <div style={styles.sectionTitle}>
-              Selected file list ({selectedFiles.length})
+        {inputMode === "camera" && !cameraReadyForNext && !isScanning && (
+          <div style={styles.cameraContinueBox}>
+            <div>
+              <div style={styles.cameraContinueTitle}>Card captured</div>
+              <div style={styles.cameraContinueText}>
+                The extracted result is shown below. Review it and save it, or continue
+                to the next card when you are ready.
+              </div>
             </div>
-            <ul style={styles.fileList}>
-              {selectedFiles.map((f) => (
-                <li
-                  key={`${f.name}-${f.size}-${f.lastModified}`}
-                  style={styles.fileItem}
-                >
-                  <span style={{ color: "#F8FAFC", fontWeight: 600 }}>{f.name}</span>
-                  <span style={{ color: "#94A3B8" }}>
-                    {" "}
-                    ({Math.round(f.size / 1024)} KB)
-                  </span>
-                </li>
-              ))}
-            </ul>
+
+            <button onClick={unlockCameraForNext} style={styles.btnSecondary}>
+              Ready for next card
+            </button>
           </div>
         )}
 
@@ -462,6 +586,20 @@ export default function BusinessCardUploader() {
           toggleAllInclude={toggleAllInclude}
           onSaveClick={onSaveClick}
         />
+
+        <div style={{ marginTop: 18, display: "flex", justifyContent: "flex-end" }}>
+          <button
+            onClick={loadSavedRows}
+            disabled={isLoadingSaved}
+            style={{
+              ...styles.btnSecondary,
+              opacity: isLoadingSaved ? 0.6 : 1,
+              cursor: isLoadingSaved ? "not-allowed" : "pointer",
+            }}
+          >
+            {isLoadingSaved ? "Loading saved..." : "Refresh saved table"}
+          </button>
+        </div>
 
         <SavedCardsTable rows={savedRows} formatAddedOn={formatAddedOn} />
       </div>
@@ -504,7 +642,7 @@ const styles = {
     color: "#A7B0C0",
     fontSize: 14,
     lineHeight: 1.55,
-    maxWidth: 820,
+    maxWidth: 860,
   },
   stepper: {
     display: "flex",
@@ -525,6 +663,27 @@ const styles = {
     color: "#F8FAFC",
     border: "1px solid rgba(59,130,246,0.40)",
     boxShadow: "0 0 0 1px rgba(59,130,246,0.10) inset",
+  },
+  modeSelectorRow: {
+    display: "flex",
+    gap: 10,
+    marginBottom: 16,
+    flexWrap: "wrap",
+  },
+  modeChip: {
+    padding: "10px 14px",
+    borderRadius: 999,
+    border: "1px solid rgba(148,163,184,0.20)",
+    background: "rgba(15,23,42,0.45)",
+    color: "#CBD5E1",
+    fontWeight: 800,
+    fontSize: 13,
+    cursor: "pointer",
+  },
+  modeChipActive: {
+    background: "linear-gradient(180deg, rgba(59,130,246,0.20), rgba(37,99,235,0.18))",
+    color: "#FFFFFF",
+    border: "1px solid rgba(59,130,246,0.40)",
   },
   dropzone: {
     border: "1px dashed rgba(148,163,184,0.35)",
@@ -640,6 +799,30 @@ const styles = {
   },
   fileItem: {
     marginBottom: 6,
+  },
+  cameraContinueBox: {
+    marginTop: 14,
+    padding: 16,
+    borderRadius: 16,
+    border: "1px solid rgba(59,130,246,0.30)",
+    background: "linear-gradient(180deg, rgba(30,64,175,0.20), rgba(15,23,42,0.35))",
+    color: "#DBEAFE",
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 14,
+    flexWrap: "wrap",
+  },
+  cameraContinueTitle: {
+    fontSize: 15,
+    fontWeight: 800,
+    color: "#FFFFFF",
+    marginBottom: 4,
+  },
+  cameraContinueText: {
+    fontSize: 13,
+    color: "#CBD5E1",
+    lineHeight: 1.5,
   },
   errorBox: {
     marginTop: 14,

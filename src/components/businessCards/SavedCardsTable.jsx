@@ -207,6 +207,8 @@ const styles = {
   },
   tableWrap: {
     overflowX: "auto",
+    overflowY: "auto",
+    maxHeight: "520px",
   },
   table: {
     width: "100%",
@@ -223,10 +225,10 @@ const styles = {
     whiteSpace: "nowrap",
     color: "#CBD5E1",
     borderBottom: "1px solid rgba(148,163,184,0.18)",
-    background: "rgba(2,6,23,0.72)",
+    background: "rgba(2,6,23,0.92)",
     position: "sticky",
     top: 0,
-    zIndex: 1,
+    zIndex: 2,
     backdropFilter: "blur(8px)",
   },
   td: {
