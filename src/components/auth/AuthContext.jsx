@@ -32,6 +32,13 @@ export function AuthProvider({ children }) {
     checkSession();
   }, []);
 
+  // If any API call hits 401 (expired/invalid session), drop back to login.
+  useEffect(() => {
+    const onUnauthorized = () => setIsAuthenticated(false);
+    window.addEventListener("colops:unauthorized", onUnauthorized);
+    return () => window.removeEventListener("colops:unauthorized", onUnauthorized);
+  }, []);
+
   const login = async (username, password) => {
     // will set the session_id cookie if credentials are correct
     await apiLogin(username, password);

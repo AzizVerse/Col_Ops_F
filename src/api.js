@@ -1,6 +1,10 @@
 // src/api.js:
-export const API_BASE = "https://col-ops-b-1.onrender.com";
-// export const API_BASE = "http://localhost:8000";
+// Backend base URL is environment-driven so dev and prod never require editing
+// source. Vite loads `.env.development` for `npm run dev` (localhost) and
+// `.env.production` for `vite build` (the deployed backend). Falls back to the
+// prod backend if no env var is set.
+export const API_BASE =
+  import.meta.env.VITE_API_BASE?.trim() || "https://col-ops-b-1.onrender.com";
 let SESSION_ID = null;
 function getSessionId() {
   if (SESSION_ID) return SESSION_ID;
@@ -32,6 +36,16 @@ function authFetch(url, options = {}) {
     ...options,
     headers,
     credentials: "include",
+  }).then((resp) => {
+    // Session expired / invalid: clear it and let the app drop back to login
+    // instead of surfacing scattered "failed" errors across panels.
+    if (resp.status === 401) {
+      setSessionId(null);
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("colops:unauthorized"));
+      }
+    }
+    return resp;
   });
 }
 
