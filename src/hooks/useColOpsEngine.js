@@ -5,6 +5,7 @@ import {
   fetchOutlookPreview,
   getPendingOperations,
   confirmOperation,
+  confirmPaymentMatchGroup,
   cancelOperation,
   processImages,
   fetchPaymentsLog,
@@ -202,9 +203,35 @@ export function useColOpsEngine({ enabled = true } = {}) {
   const handleConfirm = async (id) => {
     if (!enabled) return;
 
+    const item = (pending || []).find((p) => p.id === id);
+
     try {
       setConfirmingId(id);
-      await confirmOperation(id); // /api/operations/{id}/confirm
+      try {
+        // Primary path: confirm by queue id (also logs + Telegram + clears queue)
+        await confirmOperation(id); // /api/operations/{id}/confirm
+      } catch (e) {
+        // If the backend's in-memory queue was lost (restart / free-tier
+        // spin-down) the op_id is gone (404). Fall back to confirming directly
+        // against SharePoint using the row(s) this item already carries, so the
+        // action still succeeds. SharePoint is the source of truth; once marked
+        // Paid the matcher ignores it.
+        const rowIndexes =
+          item?.row_indexes && item.row_indexes.length
+            ? item.row_indexes
+            : item?.row_index != null
+            ? [item.row_index]
+            : [];
+
+        if (e?.status !== 404 || !item || rowIndexes.length === 0) throw e;
+
+        await confirmPaymentMatchGroup({
+          amount_detected: item.amount_tnd,
+          row_indexes: rowIndexes,
+        });
+        // optimistic removal; the now-Paid invoice won't re-match anyway
+        setBackendPending((prev) => (prev || []).filter((p) => p.id !== id));
+      }
       await refreshBackendQueue();
     } catch (e) {
       console.error(e);

@@ -187,10 +187,13 @@ export async function getPendingOperations() {
 export async function confirmOperation(id) {
   const resp = await authFetch(`${API_BASE}/api/operations/${id}/confirm`, {
     method: "POST",
-    
   });
   if (!resp.ok) {
-    throw new Error("confirmOperation failed");
+    // Attach the status so callers can detect a lost queue entry (404) after a
+    // backend restart and fall back to confirming directly against SharePoint.
+    const err = new Error(`confirmOperation failed: ${resp.status}`);
+    err.status = resp.status;
+    throw err;
   }
   return resp.json();
 }
